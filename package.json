@@ -1,0 +1,22 @@
+{
+  "name": "spotshare-backend",
+  "version": "1.0.0",
+  "description": "Backend for spotshare app",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HarshitOO7/SpotShare-Backend.git"
+  },
+  "keywords": [
+    "backend"
+  ],
+  "author": "Raghav Anand",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/HarshitOO7/SpotShare-Backend/issues"
+  },
+  "homepage": "https://github.com/HarshitOO7/SpotShare-Backend#readme"
+}
