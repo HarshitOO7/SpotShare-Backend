@@ -8,11 +8,27 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
+const uploadProfilePhotoOnCloudinary = async (localFilePath) => {
+    try {
+        if (!localFilePath) return null;
+        const result = await cloudinary.uploader.upload(localFilePath, {
+            resource_type: "auto",
+            folder: "profile-photos"
+        });
+        fs.unlinkSync(localFilePath);
+        return result;
+    } catch (error) {
+        fs.unlinkSync(localFilePath);
+        return null;
+    }
+}
+
 const uploadOnCloudinary = async (localFilePath) => {
     try {
         if (!localFilePath) return null;
         const result = await cloudinary.uploader.upload(localFilePath, {
             resource_type: "auto",
+            folder: "parkingSpaces"
         });
         fs.unlinkSync(localFilePath);
         return result;
@@ -23,4 +39,5 @@ const uploadOnCloudinary = async (localFilePath) => {
 }
 
 
-export {uploadOnCloudinary};
+
+export { uploadProfilePhotoOnCloudinary, uploadOnCloudinary };

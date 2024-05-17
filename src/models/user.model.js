@@ -1,13 +1,10 @@
 import mongoose, { Schema } from "mongoose";
 
 const userSchema = new Schema({
-    username: {
+    uid: { // Firebase UID
         type: String,
         required: true,
         unique: true,
-        trim: true,
-        lowercase: true,
-        index: true,
     },
     fullName: {
         type: String,
@@ -16,7 +13,7 @@ const userSchema = new Schema({
     },
     profilePhoto: {
         type: String,
-        // default: "https://www.gravatar.com/avatar/
+        default: "https://www.gravatar.com/avatar/?d=mp"
     },
     email: {
         type: String,
@@ -24,10 +21,6 @@ const userSchema = new Schema({
         unique: true,
         trim: true,
         lowercase: true,
-    },
-    password: {
-        type: String,
-        required: true,
     },
     refreshToken: {
         type: String,

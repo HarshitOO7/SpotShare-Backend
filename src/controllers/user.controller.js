@@ -1,75 +1,101 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
-import {apiError} from '../utils/apiError.js';
+import {APIError} from '../utils/APIError.js';
 import { User } from '../models/user.model.js';
-import { apiResponse } from '../utils/apiResponse.js';
-import { uploadOnCloudinary } from '../utils/cloudinary.js';
+import { APIResponse } from '../utils/APIResponse.js';
+import { uploadProfilePhotoOnCloudinary } from '../utils/cloudinary.js';
 
 
-// fix this later
+const generateAccessAndRefreshToken = async (uid) => {
+    try {
+        const user = await User.findById(uid)
+        const accessToken = await user.generateAccessToken()
+        const refreshToken = await user.generateRefreshToken()
+
+        user.refreshToken = refreshToken
+        await user.save({ validateBeforeSave: false })
+
+        return { accessToken, refreshToken }
+    } catch (error) {
+        throw new APIError(500, "Something went wrong while generating tokens")
+    }
+}
+
 const registerUser = asyncHandler(async (req, res) => 
     {
-        const {fullName, email, username, password} = req.body
-        
-        if (
-            [fullName, email, username, password].some((field) => field?.trim() === "")
-        ) {
-            throw new apiError(400, "All fields are required")
+        const { uid, fullName, email } = req.body
+
+        if ([uid, fullName, email].some((field) => field?.trim() === "")) {
+            throw new APIError(400, "All fields are required")
         }
-    
-        const existedUser = await User.findOne({
-            $or: [{ username }, { email }]
-        })
-    
-        if (existedUser) {
-            throw new apiError(409, "User with email or username already exists")
+
+        if (await User.findOne({ $or: [{ email }, { uid }] })) {
+            throw new APIError(400, "User already exists")
         }
-        //console.log(req.files);
-    
-        const avatarLocalPath = req.files?.avatar[0]?.path;
-        //const coverImageLocalPath = req.files?.coverImage[0]?.path;
-    
-        let coverImageLocalPath;
-        if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
-            coverImageLocalPath = req.files.coverImage[0].path
-        }
-        
-    
-        if (!avatarLocalPath) {
-            throw new apiError(400, "Avatar file is required")
-        }
-    
-        const avatar = await uploadOnCloudinary(avatarLocalPath)
-        const coverImage = await uploadOnCloudinary(coverImageLocalPath)
-    
-        if (!avatar) {
-            throw new apiError(400, "Avatar file is required")
-        }
-       
-    
+
         const user = await User.create({
+            uid,
             fullName,
-            avatar: avatar.url,
-            coverImage: coverImage?.url || "",
-            email, 
-            password,
-            username: username.toLowerCase()
+            email,
         })
-    
-        const createdUser = await User.findById(user._id).select(
-            "-password -refreshToken"
-        )
-    
-        if (!createdUser) {
-            throw new apiError(500, "Something went wrong while registering the user")
+
+        const createdUser = await User.findById(user._id).select("-password -refreshToken")
+
+        if (!user) {
+            throw new APIError(500, "User not created")
         }
-        
+
         return res.status(201).json(
-            new apiResponse(201, createdUser, "User registered successfully")
+            new APIResponse(201, createdUser, "User registered successfully")
         )
     }
 );
 
+const getUserDetails = asyncHandler(async (req, res) => {
+    try {
+            const user = await User.findOne({uid: req.user.uid}).select("-refreshToken -uid")
+            if (!user) {
+                throw new APIError(404, "User not found")
+            }
+        
+            return res.status(200).json(
+                new APIResponse(200, user, "User details retrieved successfully")
+            )
+    } catch (error) {
+        console.error(error)
+        throw new APIError(500, "Something went wrong while getting user details")
+    }
+});
+
+const updateAvatar = asyncHandler(async (req, res) => {
+    // get the image from the request body and upload it to cloudinary but upload using multer middleware
+    const image = req.file?.path
+    if (!image) {
+        throw new APIError(400, "Please upload an image")
+    }
+
+    if (!(await uploadProfilePhotoOnCloudinary(image))) {
+        throw new APIError(500, "Something went wrong while uploading image")
+    }
+
+    // update the user profile photo in the database
+    const user = await User.findOneAndUpdate(
+        { uid: req.user.uid },
+        { profilePhoto: result.secure_url },
+        { new: true }
+    )
+
+    if (!user) {
+        throw new APIError(500, "Something went wrong while updating profile photo")
+    }
+
+    return res.status(200).json(
+        new APIResponse(200, user, "Profile photo updated successfully")
+    )
+});
 
 export { 
-    registerUser 
+    generateAccessAndRefreshToken,
+    registerUser,
+    getUserDetails,
+    updateAvatar
 }
