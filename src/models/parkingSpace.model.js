@@ -40,7 +40,7 @@ const parkingSpaceSchema = new Schema({
             required: true
         }
     },
-    typeOfSpot: {
+    spotType: {
         type: String,
         enum: ["Driveway", "Garage", "Street"],
         required: true

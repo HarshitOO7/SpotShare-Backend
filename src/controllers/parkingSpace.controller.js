@@ -3,12 +3,31 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { APIError } from "../utils/APIError.js";
 import { APIResponse } from "../utils/APIResponse.js";
 import { getCoordinates } from "../utils/geoCoding.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
+
+// Function to transform customTimes object
+const transformCustomTimes = (customTimes) => {
+    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const availability = [];
+
+    daysOfWeek.forEach((day) => {
+        if (customTimes[day.toLowerCase()]) {
+            availability.push({
+                day,
+                fromTime: customTimes[day.toLowerCase()].in,
+                toTime: customTimes[day.toLowerCase()].out
+            });
+        }
+    });
+
+    return availability;
+};
 
 const createParkingSpace = asyncHandler(async (req, res) => {
-    const { owner, address, typeOfSpot, vehicleSize, spacesToRent, title, description, accessInstructions, spotImages, pricePerHour, pricePerDay, pricePerMonth, availableFrom, daysAvailable } = req.body;
+    const { owner, address, spotType, vehicleSize, spacesToRent, title, description, accessInstructions, spotImages, pricePerHour, pricePerDay, pricePerMonth, availableFrom, customTimes } = req.body;
 
     // Validate required fields
-    if (!owner || !address || !typeOfSpot || !vehicleSize || !spacesToRent || !title || !description || !spotImages || !pricePerHour || !pricePerDay || !pricePerMonth || !availableFrom || !daysAvailable) {
+    if (!owner || !address || !spotType || !vehicleSize || !spacesToRent || !title || !description || !spotImages || !pricePerHour || !pricePerDay || !pricePerMonth || !availableFrom || !customTimes) {
         throw new APIError(400, "All fields are required");
     }
 
@@ -20,12 +39,15 @@ const createParkingSpace = asyncHandler(async (req, res) => {
     // Get coordinates from address using Google Maps Geocoding API
     const coordinates = await getCoordinates(address);
 
+    // Transform customTimes to daysAvailable
+    const daysAvailable = transformCustomTimes(JSON.parse(customTimes));
+
     // Create new parking space
     const newParkingSpace = new ParkingSpace({
         owner,
         address,
         coordinates,
-        typeOfSpot,
+        spotType,
         vehicleSize,
         spacesToRent,
         title,
@@ -55,6 +77,17 @@ const getParkingSpaces = asyncHandler(async (req, res) => {
     );
 });
 
+const uploadSpotImages = asyncHandler(async (req, res) => {
+    const spotImages = [];
+    console.log(req.files)
+    for (let file of req.files) {
+        const result = await uploadOnCloudinary(file.path);
+        spotImages.push(result.secure_url);
+    }
 
-export { createParkingSpace, getParkingSpaces };
-    
+    return res.status(200).json(
+        new APIResponse(200, spotImages, "Images uploaded successfully")
+    );
+});
+
+export { createParkingSpace, getParkingSpaces, uploadSpotImages };

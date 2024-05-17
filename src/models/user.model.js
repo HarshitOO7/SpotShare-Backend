@@ -22,6 +22,11 @@ const userSchema = new Schema({
         trim: true,
         lowercase: true,
     },
+    phoneNumber: {
+        type: String,
+        required: true,
+        unique: true,
+    },
     parkingHistory: [
         {
         type: Schema.Types.ObjectId,
