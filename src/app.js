@@ -28,10 +28,10 @@ app.use(cookieParser());
 
 // Importing the routes
 import userRouter from "./routes/user.routes.js";
-
+import parkingSpaceRouter from "./routes/parkingSpace.routes.js";
 
 // Routes declaration and usage
 app.use("/api/v1/users", userRouter);
-
+app.use("/api/v1/parking-space", parkingSpaceRouter);
 
 export { app };

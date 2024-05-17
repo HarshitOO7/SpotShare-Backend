@@ -22,9 +22,6 @@ const userSchema = new Schema({
         trim: true,
         lowercase: true,
     },
-    refreshToken: {
-        type: String,
-    },
     parkingHistory: [
         {
         type: Schema.Types.ObjectId,

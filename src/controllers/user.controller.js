@@ -38,7 +38,7 @@ const registerUser = asyncHandler(async (req, res) =>
             email,
         })
 
-        const createdUser = await User.findById(user._id).select("-password -refreshToken")
+        const createdUser = await User.findById(user._id).select("-uid")
 
         if (!user) {
             throw new APIError(500, "User not created")
