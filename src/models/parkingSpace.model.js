@@ -31,14 +31,8 @@ const parkingSpaceSchema = new Schema({
         required: true
     },
     coordinates: {
-        lat: {
-            type: Number,
-            required: true
-        },
-        lng: {
-            type: Number,
-            required: true
-        }
+        type: [Number],
+        required: true
     },
     spotType: {
         type: String,
@@ -47,7 +41,7 @@ const parkingSpaceSchema = new Schema({
     },
     vehicleSize: {
         type: String,
-        enum: ["Small", "Medium", "Large", "Van"],
+        enum: ["Small", "Medium", "Large", "Van/Minibus"],
         required: true
     },
     spacesToRent: {
