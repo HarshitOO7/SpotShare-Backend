@@ -22,7 +22,7 @@ const generateAccessAndRefreshToken = async (uid) => {
 
 const registerUser = asyncHandler(async (req, res) => 
     {
-        const { uid, fullName, email, phoneNumber } = req.body
+        const { uid, fullName, email} = req.body
 
         if ([uid, fullName, email, phoneNumber].some((field) => field?.trim() === "")) {
             throw new APIError(400, "All fields are required")
@@ -35,8 +35,7 @@ const registerUser = asyncHandler(async (req, res) =>
         const user = await User.create({
             uid,
             fullName,
-            email,
-            phoneNumber
+            email
         })
 
         const createdUser = await User.findById(user._id).select("-uid")
@@ -74,8 +73,10 @@ const updateAvatar = asyncHandler(async (req, res) => {
         throw new APIError(400, "Please upload an image")
     }
 
-    if (!(await uploadProfilePhotoOnCloudinary(image))) {
-        throw new APIError(500, "Something went wrong while uploading image")
+    const result = await uploadProfilePhotoOnCloudinary(image)
+
+    if (!result) {
+        throw new APIError(500, "Something went wrong while uploading profile photo")
     }
 
     // update the user profile photo in the database

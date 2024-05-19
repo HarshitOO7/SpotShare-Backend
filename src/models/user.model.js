@@ -24,8 +24,6 @@ const userSchema = new Schema({
     },
     phoneNumber: {
         type: String,
-        required: true,
-        unique: true,
     },
     parkingHistory: [
         {

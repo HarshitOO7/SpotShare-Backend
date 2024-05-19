@@ -98,23 +98,43 @@ const uploadSpotImages = asyncHandler(async (req, res) => {
     );
 });
 
-const findNearbyParkingSpaces = asyncHandler(async (req, res) => {
-    const { location } = req.query;
-  
 
-    // Get coordinates from location
-    const { lat, lng } = await getCoordinates(location);
-  
-    // Find parking spaces within the radius
-    const parkingSpaces = await ParkingSpace.find({
-      coordinates: {
-        $geoWithin: {
-          $centerSphere: [[lng, lat], 5 / 6378.1], // radius in radians
-        },
+const findNearbyParkingSpaces = asyncHandler(async (req, res) => {
+  const { location } = req.query;
+
+  if (!location) {
+    return res.status(400).json({ error: 'Location is required' });
+  }
+
+  const [lat, lng] = location.split(',');
+
+  // Ensure lat and lng are valid numbers
+  if (isNaN(lat) || isNaN(lng)) {
+    return res.status(400).json({ error: 'Invalid location format' });
+  }
+
+  // Find parking spaces within the radius
+  const parkingSpaces = await ParkingSpace.find({
+    coordinates: {
+      $geoWithin: {
+        $centerSphere: [[lng, lat], 5 / 6378.1], // radius in radians
       },
-    });
-  
-    res.json(parkingSpaces);
+    },
   });
 
-export { createParkingSpace, getParkingSpaces, uploadSpotImages, findNearbyParkingSpaces };
+  res.json(parkingSpaces);
+});
+
+const getParkingSpaceById = asyncHandler(async (req, res) => {
+    const parkingSpace = await ParkingSpace.findById(req.params.id);
+
+    if (!parkingSpace) {
+        throw new APIError(404, "Parking space not found");
+    }
+
+    return res.status(200).json(
+        new APIResponse(200, parkingSpace, "Parking space retrieved successfully")
+    );
+});
+
+export { createParkingSpace, getParkingSpaces, uploadSpotImages, findNearbyParkingSpaces, getParkingSpaceById };
