@@ -129,12 +129,28 @@ const findNearbyParkingSpaces = asyncHandler(async (req, res) => {
         },
         availableFrom: { $lte: timeInDate },
         isAvailable: true
-    }).lean(); // Use lean to get plain JavaScript objects instead of Mongoose documents
+    }).populate('reservations').lean(); // Use lean to get plain JavaScript objects instead of Mongoose documents
 
     // Filter parking spaces based on time availability for the specific date
     const filteredParkingSpaces = parkingSpaces.filter(parkingSpace => {
-        const { daysAvailable } = parkingSpace;
+        const { daysAvailable, reservations } = parkingSpace;
         const queryDay = timeInDate.toLocaleString('en-US', { weekday: 'long' });
+
+        // Check if there are no overlapping reservations
+        const hasNoOverlappingReservation = !reservations.some(reservation => {
+            const existingStartTime = new Date(reservation.startTime);
+            const existingEndTime = new Date(reservation.endTime);
+
+            return (
+                (timeInDate < existingEndTime && timeOutDate > existingStartTime) || // New start time is within an existing reservation
+                (timeOutDate > existingStartTime && timeInDate < existingEndTime) || // New end time is within an existing reservation
+                (timeInDate <= existingStartTime && timeOutDate >= existingEndTime)  // New reservation spans an existing reservation
+            );
+        });
+
+        if (!hasNoOverlappingReservation) {
+            return false;
+        }
 
         // Check availability for the specific date and time
         return daysAvailable.some(slot => {
@@ -154,6 +170,7 @@ const findNearbyParkingSpaces = asyncHandler(async (req, res) => {
 
     res.status(200).json(filteredParkingSpaces);
 });
+
 
 const getParkingSpaceById = asyncHandler(async (req, res) => {
     const parkingSpace = await ParkingSpace.findById(req.params.id);

@@ -4,6 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { APIError } from '../utils/APIError.js';
 import { APIResponse } from '../utils/APIResponse.js';
 import { User } from '../models/user.model.js';
+import { sendEmail } from '../utils/mailer.js';
 
 const createReservation = asyncHandler(async (req, res) => {
     const { userEmail, parkingSpaceId, startTime, endTime, totalPrice, vehicleReg } = req.body;
@@ -17,7 +18,11 @@ const createReservation = asyncHandler(async (req, res) => {
         throw new APIError(404, 'User not found');
     }
 
-    const parkingSpace = await ParkingSpace.findById(parkingSpaceId).populate('reservations');
+    if(!user.phoneNumber) {
+        throw new APIError(400, 'User must have a phone number to make a reservation');
+    }
+
+    const parkingSpace = await ParkingSpace.findById(parkingSpaceId).populate('reservations').populate('owner');
     if (!parkingSpace) {
         throw new APIError(404, 'Parking space not found');
     }
@@ -75,6 +80,28 @@ const createReservation = asyncHandler(async (req, res) => {
 
     parkingSpace.reservations.push(newReservation._id);
     await parkingSpace.save();
+
+        // Send email notification to the parking space owner
+        const subject = 'New Reservation for Your Parking Space!';
+        const to = parkingSpace.owner.email;
+        const html = `
+        <img src="https://raw.githubusercontent.com/Zeethx/SpotShare/master/public/images/spotshare_horizontal.png" alt="SpotShare Logo">
+        <p>Hello ${parkingSpace.owner.fullName},</p>
+        <p>Your parking space at ${parkingSpace.address} has a new reservation.</p>
+        <p>Reservation Details:</p>
+        <ul>
+            <li>User: ${user.fullName} (${user.email})</li>
+            <li>Start Time: ${newStartTime.toISOString()}</li>
+            <li>End Time: ${newEndTime.toISOString()}</li>
+            <li>Total Price: ${totalPrice}</li>
+            <li>Vehicle Registration: ${vehicleReg}</li>
+        </ul>
+        <p>View the reservation: <a href="http://localhost:3000/reservations/${newReservation._id}">here</a></p>
+        <p>Thank you,</p>
+        <p>SpotShare Team</p>
+    `;
+    
+        await sendEmail(to, subject, html);
 
     res.status(201).json(new APIResponse(201, newReservation, 'Reservation request created successfully and is pending approval'));
 });
