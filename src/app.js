@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors'
 import cookieParser from 'cookie-parser';
 
-
 const app = express();
 
 app.use(cors({
@@ -16,6 +15,7 @@ app.use(express.static("public"));
 
 app.use(cookieParser());
 
+
 (async () => {
     try {
         app.on("ready", () => {
@@ -24,14 +24,18 @@ app.use(cookieParser());
     } catch (error) {
         console.log("Failed to connect to MongoDB", error);
     }
-})()
+})();
 
 // Importing the routes
 import userRouter from "./routes/user.routes.js";
 import parkingSpaceRouter from "./routes/parkingSpace.routes.js";
+import reservationRouter from "./routes/reservation.routes.js";
+import paymentRouter from "./routes/payment.routes.js";
 
 // Routes declaration and usage
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/parking-space", parkingSpaceRouter);
+app.use("/api/v1/reservation", reservationRouter);
+app.use("/api/v1/pay", paymentRouter);
 
 export { app };

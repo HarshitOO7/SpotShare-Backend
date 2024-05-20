@@ -25,25 +25,29 @@ const reservationSchema = new Schema({
     },
     status: {
         type: String,
-        enum: ['Upcoming','Parked', 'Completed', 'Cancelled'],
+        enum: ['Pending','Approved', 'Rejected', 'Cancelled'],
         required: true,
-    },
-    payment: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Payment',
     },
     review: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Review',
     },
-    isPaid: {
+    approved: {
         type: Boolean,
         default: false,
     },
-    isReviewed: {
-        type: Boolean,
-        default: false,
+    paymentIntentId: {
+        type: String,
     },
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'succeeded', 'failed'],
+        default: 'pending'
+    },
+    vehicleReg: {
+        type: String,
+        required: true,
+    }
 
 }, { timestamps: true });
 

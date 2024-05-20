@@ -5,6 +5,7 @@ import { APIResponse } from "../utils/APIResponse.js";
 import { getCoordinates } from "../utils/geoCoding.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { User } from "../models/user.model.js"; // Ensure you have user model
+import { Reservation } from "../models/reservation.model.js";
 
 // Function to transform customTimes object
 const transformCustomTimes = (customTimes) => {
@@ -47,7 +48,7 @@ const createParkingSpace = asyncHandler(async (req, res) => {
     const { lat, lng } = await getCoordinates(address);
     const coordinates = [lng, lat]; // GeoJSON format
 
-    // Transform customTimes to daysAvailable
+    // Transform customTimes object to availability array
     const daysAvailable = transformCustomTimes(customTimes);
 
     // Create new parking space
@@ -66,7 +67,8 @@ const createParkingSpace = asyncHandler(async (req, res) => {
         pricePerDay,
         pricePerMonth,
         availableFrom,
-        daysAvailable
+        daysAvailable,
+        reservations: []
     });
 
     // Save parking space to the database
@@ -87,7 +89,6 @@ const getParkingSpaces = asyncHandler(async (req, res) => {
 
 const uploadSpotImages = asyncHandler(async (req, res) => {
     const spotImages = [];
-    console.log(req.files)
     for (let file of req.files) {
         const result = await uploadOnCloudinary(file.path);
         spotImages.push(result.secure_url);
@@ -98,31 +99,60 @@ const uploadSpotImages = asyncHandler(async (req, res) => {
     );
 });
 
-
 const findNearbyParkingSpaces = asyncHandler(async (req, res) => {
-  const { location } = req.query;
+    const { location, timeIn, timeOut } = req.query;
 
-  if (!location) {
-    return res.status(400).json({ error: 'Location is required' });
-  }
+    if (!location) {
+        return res.status(400).json({ error: 'Location is required' });
+    }
 
-  const [lat, lng] = location.split(',');
+    const [lat, lng] = location.split(',');
 
-  // Ensure lat and lng are valid numbers
-  if (isNaN(lat) || isNaN(lng)) {
-    return res.status(400).json({ error: 'Invalid location format' });
-  }
+    if (isNaN(lat) || isNaN(lng)) {
+        return res.status(400).json({ error: 'Invalid location format' });
+    }
 
-  // Find parking spaces within the radius
-  const parkingSpaces = await ParkingSpace.find({
-    coordinates: {
-      $geoWithin: {
-        $centerSphere: [[lng, lat], 5 / 6378.1], // radius in radians
-      },
-    },
-  });
+    // Convert timeIn and timeOut to Date objects
+    const timeInDate = new Date(timeIn);
+    const timeOutDate = new Date(timeOut);
 
-  res.json(parkingSpaces);
+    if (isNaN(timeInDate) || isNaN(timeOutDate)) {
+        return res.status(400).json({ error: 'Invalid date format' });
+    }
+
+    // Find parking spaces within the radius
+    const parkingSpaces = await ParkingSpace.find({
+        coordinates: {
+            $geoWithin: {
+                $centerSphere: [[lng, lat], 5 / 6378.1], // radius in radians
+            },
+        },
+        availableFrom: { $lte: timeInDate },
+        isAvailable: true
+    }).lean(); // Use lean to get plain JavaScript objects instead of Mongoose documents
+
+    // Filter parking spaces based on time availability for the specific date
+    const filteredParkingSpaces = parkingSpaces.filter(parkingSpace => {
+        const { daysAvailable } = parkingSpace;
+        const queryDay = timeInDate.toLocaleString('en-US', { weekday: 'long' });
+
+        // Check availability for the specific date and time
+        return daysAvailable.some(slot => {
+            if (slot.day === queryDay) {
+                const fromTime = new Date(`1970-01-01T${slot.fromTime}:00`);
+                const toTime = new Date(`1970-01-01T${slot.toTime}:00`);
+                const startReservation = new Date(`1970-01-01T${timeInDate.toTimeString().slice(0, 5)}:00`);
+                const endReservation = new Date(`1970-01-01T${timeOutDate.toTimeString().slice(0, 5)}:00`);
+
+                return (
+                    startReservation >= fromTime && endReservation <= toTime
+                );
+            }
+            return false;
+        });
+    });
+
+    res.status(200).json(filteredParkingSpaces);
 });
 
 const getParkingSpaceById = asyncHandler(async (req, res) => {

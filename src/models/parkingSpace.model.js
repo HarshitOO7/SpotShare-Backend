@@ -1,5 +1,4 @@
-import mongoose, { Schema } from "mongoose";
-
+import mongoose, { Schema } from 'mongoose';
 
 const availabilitySchema = new Schema({
     day: {
@@ -88,18 +87,15 @@ const parkingSpaceSchema = new Schema({
         required: true
     },
     daysAvailable: [availabilitySchema],
-
+    reservations: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Reservation"
+    }],
 }, { timestamps: true });
-
 
 function arrayLimit(val) {
     return val.length <= 6;
 }
-
-// Validate the number of images uploaded
-parkingSpaceSchema.path("spotImages").validate(function (value) {
-    return value.length <= 6;
-}, "You can only upload a maximum of 6 images");
 
 // Create a 2dsphere index on the coordinates field
 parkingSpaceSchema.index({ coordinates: "2dsphere" });
