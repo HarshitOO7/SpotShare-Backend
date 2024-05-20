@@ -74,6 +74,10 @@ const createParkingSpace = asyncHandler(async (req, res) => {
     // Save parking space to the database
     await newParkingSpace.save();
 
+    // Add parking space to user's parkingSpaces array
+    user.parkingSpaces.push(newParkingSpace._id);
+    await user.save();
+
     return res.status(201).json(
         new APIResponse(201, newParkingSpace, "Parking space created successfully")
     );
@@ -183,5 +187,6 @@ const getParkingSpaceById = asyncHandler(async (req, res) => {
         new APIResponse(200, parkingSpace, "Parking space retrieved successfully")
     );
 });
+
 
 export { createParkingSpace, getParkingSpaces, uploadSpotImages, findNearbyParkingSpaces, getParkingSpaceById };

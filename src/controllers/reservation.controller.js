@@ -101,7 +101,7 @@ const createReservation = asyncHandler(async (req, res) => {
         <p>SpotShare Team</p>
     `;
     
-        await sendEmail(to, subject, html);
+        // await sendEmail(to, subject, html);
 
     res.status(201).json(new APIResponse(201, newReservation, 'Reservation request created successfully and is pending approval'));
 });

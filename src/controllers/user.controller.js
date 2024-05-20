@@ -96,9 +96,28 @@ const updateAvatar = asyncHandler(async (req, res) => {
     )
 });
 
+
+const getParkingSpaces = asyncHandler(async (req, res) => {
+    const parkingSpaces = await User.find().populate('parkingSpaces')
+    if (!parkingSpaces) {
+        throw new APIError(404, "Parking spaces not found")
+    }
+    //parkSpaces is an array of objects, each object contains a parkingSpace object
+    
+    const spots = parkingSpaces.map(user => user.parkingSpaces).flat()
+    console.log(spots)
+
+    return res.status(200).json(
+        new APIResponse(200, spots, "Spots retrieved successfully")
+    )
+});
+
+
+
 export { 
     generateAccessAndRefreshToken,
     registerUser,
     getUserDetails,
-    updateAvatar
+    updateAvatar,
+    getParkingSpaces
 }

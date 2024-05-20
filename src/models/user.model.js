@@ -25,12 +25,18 @@ const userSchema = new Schema({
     phoneNumber: {
         type: String,
     },
-    parkingHistory: [
+    reservationHistory: [
         {
         type: Schema.Types.ObjectId,
         ref: "Reservation",
         }
-    ]
+    ],
+    parkingSpaces: [
+        {
+        type: Schema.Types.ObjectId,
+        ref: "ParkingSpace",
+        }
+    ],
 
 }, { timestamps: true });
 
