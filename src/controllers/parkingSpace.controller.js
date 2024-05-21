@@ -255,8 +255,8 @@ const approveParkingSpace = asyncHandler(async (req, res) => {
     throw new APIError(404, "Parking space not found");
   }
 
-  if (parkingSpace.status !== "In Review") {
-    throw new APIError(400, "Parking space is not in review");
+  if (parkingSpace.status !== "Pending") {
+    throw new APIError(400, "Parking space is pending approval");
   }
 
   parkingSpace.status = "Approved";
@@ -277,7 +277,7 @@ const rejectParkingSpace = asyncHandler(async (req, res) => {
     throw new APIError(404, "Parking space not found");
   }
 
-  if (parkingSpace.status !== "In Review") {
+  if (parkingSpace.status !== "Pending") {
     throw new APIError(400, "Parking space is not in review");
   }
 
@@ -292,9 +292,24 @@ const rejectParkingSpace = asyncHandler(async (req, res) => {
 });
 
 const getAllParkingSpaces = asyncHandler(async (req, res) => {
-    const parkingSpaces = await ParkingSpace.find().populate('owner');
+  // Get all parking spaces
+  const parkingSpaces = await ParkingSpace.find();
 
-    return res.status(200).json(new APIResponse(200, parkingSpaces, "All parking spaces retrieved successfully"));
+  if (!parkingSpaces) {
+    throw new APIError(404, "No parking spaces found");
+  }
+
+
+  return res
+    .status(200)
+    .json(
+      new APIResponse(
+        200,
+        parkingSpaces,
+        "All parking spaces retrieved successfully"
+      )
+    );
+
 });
 
 

@@ -83,16 +83,12 @@ const updateAvatar = asyncHandler(async (req, res) => {
 
 
 const getParkingSpaces = asyncHandler(async (req, res) => {
-    const parkingSpaces = await User.find().populate('parkingSpaces')
-    if (!parkingSpaces) {
-        throw new APIError(404, "Parking spaces not found")
+    const user = await User.findOne({uid: req.user.uid}).populate("parkingSpaces")
+    if (!user) {
+        throw new APIError(404, "User not found")
     }
-    //parkSpaces is an array of objects, each object contains a parkingSpace object
-    
-    const spots = parkingSpaces.map(user => user.parkingSpaces).flat()
-
     return res.status(200).json(
-        new APIResponse(200, spots, "Spots retrieved successfully")
+        new APIResponse(200, user.parkingSpaces, "User parking spaces retrieved successfully")
     )
 });
 
@@ -102,6 +98,7 @@ const isUserAdmin = asyncHandler(async (req, res) => {
         throw new APIError(404, "User not found")
     }
     if (user.role !== "admin") {
+        
         throw new APIError(403, "Access denied, admin only")
     }
     return res.status(200).json(
