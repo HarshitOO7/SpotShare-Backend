@@ -109,6 +109,7 @@ const createParkingSpace = asyncHandler(async (req, res) => {
     daysAvailable,
     reservations: [],
     status: "Pending",
+    rejectionReason: null,
   });
 
   // Save parking space to the database
@@ -271,6 +272,7 @@ const approveParkingSpace = asyncHandler(async (req, res) => {
 
 const rejectParkingSpace = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const { rejectionReason } = req.body;
 
   const parkingSpace = await ParkingSpace.findById(id);
   if (!parkingSpace) {
@@ -282,6 +284,7 @@ const rejectParkingSpace = asyncHandler(async (req, res) => {
   }
 
   parkingSpace.status = "Rejected";
+  parkingSpace.rejectionReason = rejectionReason;
   await parkingSpace.save();
 
   res
