@@ -82,7 +82,7 @@ const parkingSpaceSchema = new Schema({
         type: Boolean,
         default: true
     },
-    availableFrom: {
+    availableTill: {
         type: Date,
         required: true
     },
@@ -91,6 +91,15 @@ const parkingSpaceSchema = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Reservation"
     }],
+    reviews: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Review"
+    }],
+    status: {
+        type: String,
+        enum: ["Approved", "Rejected", "Pending"],
+        default: "Pending"
+    }
 }, { timestamps: true });
 
 function arrayLimit(val) {

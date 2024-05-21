@@ -5,21 +5,6 @@ import { APIResponse } from '../utils/APIResponse.js';
 import { uploadProfilePhotoOnCloudinary } from '../utils/cloudinary.js';
 
 
-const generateAccessAndRefreshToken = async (uid) => {
-    try {
-        const user = await User.findById(uid)
-        const accessToken = await user.generateAccessToken()
-        const refreshToken = await user.generateRefreshToken()
-
-        user.refreshToken = refreshToken
-        await user.save({ validateBeforeSave: false })
-
-        return { accessToken, refreshToken }
-    } catch (error) {
-        throw new APIError(500, "Something went wrong while generating tokens")
-    }
-}
-
 const registerUser = asyncHandler(async (req, res) => 
     {
         const { uid, fullName, email, phoneNumber} = req.body
@@ -105,19 +90,29 @@ const getParkingSpaces = asyncHandler(async (req, res) => {
     //parkSpaces is an array of objects, each object contains a parkingSpace object
     
     const spots = parkingSpaces.map(user => user.parkingSpaces).flat()
-    console.log(spots)
 
     return res.status(200).json(
         new APIResponse(200, spots, "Spots retrieved successfully")
     )
 });
 
-
+const isUserAdmin = asyncHandler(async (req, res) => {
+    const user = await User.findOne({uid: req.user.uid})
+    if (!user) {
+        throw new APIError(404, "User not found")
+    }
+    if (user.role !== "admin") {
+        throw new APIError(403, "Access denied, admin only")
+    }
+    return res.status(200).json(
+        new APIResponse(200, user, "User is an admin")
+    )
+});
 
 export { 
-    generateAccessAndRefreshToken,
     registerUser,
     getUserDetails,
     updateAvatar,
-    getParkingSpaces
+    getParkingSpaces,
+    isUserAdmin
 }
