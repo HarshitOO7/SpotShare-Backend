@@ -38,7 +38,7 @@ const registerUser = asyncHandler(async (req, res) =>
 
 const getUserDetails = asyncHandler(async (req, res) => {
     try {
-            const user = await User.findOne({uid: req.user.uid}).select("-refreshToken -uid")
+            const user = await User.findOne({uid: req.user.uid}).select("-uid")
             if (!user) {
                 throw new APIError(404, "User not found")
             }
@@ -106,10 +106,21 @@ const isUserAdmin = asyncHandler(async (req, res) => {
     )
 });
 
+const getProfilePhoto = asyncHandler(async (req, res) => {
+    const user = await User.findOne({uid: req.user.uid})
+    if (!user) {
+        throw new APIError(404, "User not found")
+    }
+    return res.status(200).json(
+        new APIResponse(200, user.profilePhoto, "User profile photo retrieved successfully")
+    )
+});
+
 export { 
     registerUser,
     getUserDetails,
     updateAvatar,
     getParkingSpaces,
-    isUserAdmin
+    isUserAdmin,
+    getProfilePhoto
 }

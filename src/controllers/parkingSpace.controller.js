@@ -109,7 +109,6 @@ const createParkingSpace = asyncHandler(async (req, res) => {
     daysAvailable,
     reservations: [],
     status: "Pending",
-    rejectionReason: null,
   });
 
   // Save parking space to the database
@@ -251,16 +250,15 @@ const getParkingSpaceById = asyncHandler(async (req, res) => {
 const approveParkingSpace = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const parkingSpace = await ParkingSpace.findById(id);
+  const parkingSpace = await ParkingSpace.findByIdAndUpdate(id, {
+    status: "Approved",
+    rejectionReason: "",
+  });
+
   if (!parkingSpace) {
     throw new APIError(404, "Parking space not found");
   }
 
-  if (parkingSpace.status !== "Pending") {
-    throw new APIError(400, "Parking space is pending approval");
-  }
-
-  parkingSpace.status = "Approved";
   await parkingSpace.save();
 
   res
@@ -274,18 +272,14 @@ const rejectParkingSpace = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { rejectionReason } = req.body;
 
-  const parkingSpace = await ParkingSpace.findById(id);
+  const parkingSpace = await ParkingSpace.findByIdAndUpdate(id, {
+    status: "Rejected",
+    rejectionReason,
+  });
+
   if (!parkingSpace) {
     throw new APIError(404, "Parking space not found");
   }
-
-  if (parkingSpace.status !== "Pending") {
-    throw new APIError(400, "Parking space is not in review");
-  }
-
-  parkingSpace.status = "Rejected";
-  parkingSpace.rejectionReason = rejectionReason;
-  await parkingSpace.save();
 
   res
     .status(200)

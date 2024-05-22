@@ -86,10 +86,6 @@ const parkingSpaceSchema = new Schema({
         type: Date,
         required: true
     },
-    rejectionReason: {
-        type: String,
-        default: null
-    },
     daysAvailable: [availabilitySchema],
     reservations: [{
         type: mongoose.Schema.Types.ObjectId,
@@ -103,6 +99,10 @@ const parkingSpaceSchema = new Schema({
         type: String,
         enum: ["Approved", "Rejected", "Pending"],
         default: "Pending"
+    },
+    rejectionReason: {
+        type: String,
+        default: ""
     },
 }, { timestamps: true });
 
