@@ -129,6 +129,69 @@ const createParkingSpace = asyncHandler(async (req, res) => {
     );
 });
 
+const updateParkingSpace = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { owner, spotType, vehicleSize, spacesToRent, title, description, accessInstructions, spotImages, pricePerHour, pricePerDay, pricePerMonth, availableTill, daysAvailable, isAvailable } = req.body;
+
+    // Validate image array length
+    if (spotImages.length > 6) {
+      throw new APIError(400, "You can only upload a maximum of 6 images");
+  }
+
+  // Find parking space by ID
+  const parkingSpace = await ParkingSpace.findById(id);
+
+  if (!parkingSpace) {
+      throw new APIError(404, "Parking space not found");
+  }
+
+  // Validate required fields
+  const updatedParkingSpace = await ParkingSpace.findByIdAndUpdate
+  (id, {
+      owner: parkingSpace.owner,
+      spotType: spotType || parkingSpace.spotType,
+      vehicleSize: vehicleSize || parkingSpace.vehicleSize,
+      spacesToRent: spacesToRent || parkingSpace.spacesToRent,
+      title: title || parkingSpace.title,
+      description: description || parkingSpace.description,
+      accessInstructions: accessInstructions || parkingSpace.accessInstructions,
+      spotImages: spotImages || parkingSpace.spotImages,
+      pricePerHour: pricePerHour || parkingSpace.pricePerHour,
+      pricePerDay: pricePerDay || parkingSpace.pricePerDay,
+      pricePerMonth: pricePerMonth || parkingSpace.pricePerMonth,
+      availableTill: availableTill || parkingSpace.availableTill,
+      daysAvailable: daysAvailable || parkingSpace.daysAvailable,
+      isAvailable: isAvailable !== undefined ? isAvailable : parkingSpace.isAvailable,
+  }, { new: true });
+
+
+  if (!updatedParkingSpace) {
+      throw new APIError(404, "Error updating parking space");
+  }
+
+  return res.status(200).json(
+      new APIResponse(200, updatedParkingSpace, "Parking space updated successfully")
+  );
+});
+
+const removeParkingSpace = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const parkingSpace = await ParkingSpace.findByIdAndDelete(id);
+
+  if (!parkingSpace) {
+    throw new APIError(404, "Parking space not found");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new APIResponse(200, parkingSpace, "Parking space deleted successfully")
+    );
+});
+
+
+
 const getParkingSpaces = asyncHandler(async (req, res) => {
   const parkingSpaces = await ParkingSpace.find();
 
@@ -312,6 +375,8 @@ const getAllParkingSpaces = asyncHandler(async (req, res) => {
 
 export {
   createParkingSpace,
+  updateParkingSpace,
+  removeParkingSpace,
   getParkingSpaces,
   uploadSpotImages,
   findNearbyParkingSpaces,

@@ -11,11 +11,15 @@ import {
   approveParkingSpace,
   rejectParkingSpace,
   getAllParkingSpaces,
+  updateParkingSpace,
+  removeParkingSpace
 } from "../controllers/parkingSpace.controller.js";
 
 const router = Router();
 
 router.post("/create", auth, createParkingSpace);
+router.put("/:id/update", auth, updateParkingSpace);
+router.delete("/:id/remove", auth, removeParkingSpace);
 router.get("/list", getParkingSpaces);
 router.post("/upload", auth, upload.array("spotImages", 6), uploadSpotImages);
 router.get("/nearby", findNearbyParkingSpaces);
