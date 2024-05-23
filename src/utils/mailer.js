@@ -9,9 +9,9 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-const sendEmail = async (to, subject, html) => {
+const sendEmail = async (from='spotshare3@gmail.com', to, subject, html) => {
     const mailOptions = {
-        from: 'spotshare3@gmail.com',
+        from,
         to,
         subject,
         html

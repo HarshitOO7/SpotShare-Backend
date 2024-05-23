@@ -81,6 +81,8 @@ const createReservation = asyncHandler(async (req, res) => {
     parkingSpace.reservations.push(newReservation._id);
     await parkingSpace.save();
 
+    user.reservationHistory.push(newReservation._id);
+    await user.save();
         // Send email notification to the parking space owner
         const subject = 'New Reservation for Your Parking Space!';
         const to = parkingSpace.owner.email;
@@ -162,19 +164,24 @@ const getReservationById = asyncHandler(async (req, res) => {
 
 const getAllParkingSpaceReservations = asyncHandler(async (req, res) => {
     let reservations;
-    if (req.query.ids) {
-        const ids = req.query.ids.split(','); 
-        reservations = await Reservation.find({ _id: { $in: ids } }); // Find reservations with ids in the ids array
-        
-        const users = await User.find({ _id: { $in: reservations.map(reservation => reservation.user) } });
-        
-        reservations = reservations.map(reservation => {
-            const user = users.find(user => user._id.toString() === reservation.user.toString());
-            return { ...reservation._doc, user };
-        } );
+    const parkingSpaceId = req.query.parkingSpaceId;
+    const userId = req.user.uid; // authenticated user ID
+    
+    const user = await User.findOne({ uid: userId });
+    // Fetch the parking space and verify ownership
+    const parkingSpace = await ParkingSpace.findOne({ owner: user._id });
+
+    if (!parkingSpace) {
+        throw new APIError(403, 'Unauthorized access, you do not own this parking space');
+    }
+    
+
+    if (parkingSpaceId) {
+        reservations = await Reservation.find({ parkingSpace: parkingSpaceId }).populate('user');
     } else {
         reservations = await Reservation.find().populate('user');
     }
+
 
     res.status(200).json(new APIResponse(200, reservations, 'Reservations retrieved successfully'));
 });

@@ -297,10 +297,15 @@ const findNearbyParkingSpaces = asyncHandler(async (req, res) => {
 
 const getParkingSpaceById = asyncHandler(async (req, res) => {
   const parkingSpace = await ParkingSpace.findById(req.params.id);
-
   if (!parkingSpace) {
     throw new APIError(404, "Parking space not found");
   }
+
+  const user = await User.findOne({uid: req.user.uid})
+
+  if(user._id.toString() !== parkingSpace.owner.toString() && user.role !== "admin") {
+    throw new APIError(403, "Access denied, admin or owner only")
+  }  
 
   return res
     .status(200)

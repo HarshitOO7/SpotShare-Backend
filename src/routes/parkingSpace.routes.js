@@ -24,7 +24,7 @@ router.get("/list", getParkingSpaces);
 router.post("/upload", auth, upload.array("spotImages", 6), uploadSpotImages);
 router.get("/nearby", findNearbyParkingSpaces);
 router.get("/all", auth, isAdmin, getAllParkingSpaces);
-router.get("/:id", getParkingSpaceById);
+router.get("/:id", auth, getParkingSpaceById);
 router.patch("/:id/approve", auth, isAdmin, approveParkingSpace);
 router.patch("/:id/reject", auth, isAdmin, rejectParkingSpace);
 
