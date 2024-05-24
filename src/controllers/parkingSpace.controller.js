@@ -244,7 +244,7 @@ const findNearbyParkingSpaces = asyncHandler(async (req, res) => {
     status: "Approved",
     coordinates: {
       $geoWithin: {
-        $centerSphere: [[lng, lat], 5 / 6378.1], // radius in radians
+        $centerSphere: [[lng, lat], 8 / 6378.1], // radius in radians
       },
     },
     availableTill: { $gte: timeOutDate },

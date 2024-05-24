@@ -1,9 +1,9 @@
-import { Review } from "../models/review.model";
-import { ParkingSpace } from "../models/parkingSpace.model";
-import { User } from "../models/user.model";
-import { APIError } from "../utils/APIError";
-import { APIResponse } from "../utils/APIResponse";
-import { asyncHandler } from "../utils/asyncHandler";
+import { Review } from "../models/review.model.js";
+import { ParkingSpace } from "../models/parkingSpace.model.js";
+import { User } from "../models/user.model.js";
+import { APIError } from "../utils/APIError.js";
+import { APIResponse } from "../utils/APIResponse.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
 const createReview = asyncHandler(async (req, res, next) => {
     const { spotId } = req.params;

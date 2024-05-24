@@ -11,6 +11,10 @@ const reviewSchema = new Schema({
         ref: 'ParkingSpace',
         required: true,
     },
+    reservation: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Reservation',
+    },
     rating: {
         type: Number,
         required: true,
