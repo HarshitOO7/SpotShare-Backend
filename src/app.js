@@ -31,11 +31,13 @@ import userRouter from "./routes/user.routes.js";
 import parkingSpaceRouter from "./routes/parkingSpace.routes.js";
 import reservationRouter from "./routes/reservation.routes.js";
 import paymentRouter from "./routes/payment.routes.js";
+import reviewRouter from "./routes/review.routes.js";
 
 // Routes declaration and usage
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/parking-space", parkingSpaceRouter);
 app.use("/api/v1/reservation", reservationRouter);
 app.use("/api/v1/pay", paymentRouter);
+app.use("/api/v1/review", reviewRouter);
 
 export { app };

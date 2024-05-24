@@ -35,7 +35,7 @@ const parkingSpaceSchema = new Schema({
     },
     spotType: {
         type: String,
-        enum: ["Driveway", "Garage", "Street"],
+        enum: ["Driveway", "Garage", "Other"],
         required: true
     },
     vehicleSize: {
