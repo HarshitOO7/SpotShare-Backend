@@ -4,7 +4,7 @@ import { getReviews, createReview } from "../controllers/review.controller.js";
 
 const router = Router();
 
-router.post("/:spotId/create", auth, createReview);
+router.post("/:parkingId/:reservationId/create", auth, createReview);
 router.get("/:spotId/all", auth, getReviews);
 
 export default router;
