@@ -6,6 +6,6 @@ const router = Router();
 
 router.post("/:parkingId/:reservationId/create", auth, createReview);
 router.get("/:spotId/all", getReviews);
-router.get("/:spotId/ratings", getRatings);
+router.get("/ratings", getRatings);
 
 export default router;
