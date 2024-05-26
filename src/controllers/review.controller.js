@@ -95,4 +95,23 @@ const getReviews = asyncHandler(async (req, res, next) => {
     }
 });
 
-export { createReview, getReviews };
+const getRatings = asyncHandler(async (req, res, next) => {
+    try {
+        const { spotId } = req.params;
+
+        const parkingSpace = await ParkingSpace.findById(spotId).populate("reviews");
+        if (!parkingSpace) {
+            throw new APIError(404, "Parking space not found");
+        }
+
+        const ratings = parkingSpace.reviews.map((review) => review.rating);
+        const averageRating = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+
+        return res.status(200).json(new APIResponse(200, { averageRating, totalRatings: ratings.length }, "Ratings retrieved successfully"));
+
+    } catch (error) {
+        next(error);
+    }
+});
+
+export { createReview, getReviews, getRatings };
