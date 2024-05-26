@@ -61,7 +61,35 @@ const getReviews = asyncHandler(async (req, res, next) => {
             throw new APIError(404, "Parking space not found");
         }
 
-        return res.status(200).json(new APIResponse(200, "Reviews retrieved successfully", { reviews: parkingSpace.reviews }));
+        //info about the user who posted the review
+        const reviews = parkingSpace.reviews.map((review) => {
+            return {
+                id: review._id,
+                rating: review.rating,
+                comment: review.comment,
+                user: review.user,
+                createdAt: review.createdAt
+            };
+        });
+
+        const users = await User.find({ _id: { $in: reviews.map((review) => review.user) } });
+
+        const reviewsWithUsers = reviews.map((review) => {
+            const user = users.find((user) => user._id.equals(review.user));
+            return {
+                id: review.id,
+                rating: review.rating,
+                comment: review.comment,
+                user: {
+                    fullName: user.fullName,
+                    profilePhoto: user.profilePhoto  
+                },
+                createdAt: review.createdAt
+            };
+        });
+
+        return res.status(200).json(new APIResponse(200, reviewsWithUsers, "Reviews retrieved successfully"));
+
     } catch (error) {
         next(error);
     }
