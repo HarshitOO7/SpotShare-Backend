@@ -43,6 +43,7 @@ const getUserDetails = asyncHandler(async (req, res) => {
                 throw new APIError(404, "User not found")
             }
         
+            
             return res.status(200).json(
                 new APIResponse(200, user, "User details retrieved successfully")
             )

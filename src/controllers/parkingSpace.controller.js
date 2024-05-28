@@ -301,10 +301,23 @@ const getParkingSpaceById = asyncHandler(async (req, res) => {
     throw new APIError(404, "Parking space not found");
   }
 
+  return res
+    .status(200)
+    .json(
+      new APIResponse(200, parkingSpace, "Parking space retrieved successfully")
+    );
+});
+
+const getUserParkingSpaceById = asyncHandler(async (req, res) => {
+  const parkingSpace = await ParkingSpace.findById(req.params.id);
+  if (!parkingSpace) {
+    throw new APIError(404, "Parking space not found");
+  }
+
   const user = await User.findOne({uid: req.user.uid})
 
   if(user._id.toString() !== parkingSpace.owner.toString() && user.role !== "admin") {
-    throw new APIError(403, "Access denied, admin or owner only")
+    throw new APIError(403, "Access denied, owner only")
   }  
 
   return res
@@ -386,6 +399,7 @@ export {
   uploadSpotImages,
   findNearbyParkingSpaces,
   getParkingSpaceById,
+  getUserParkingSpaceById,
   approveParkingSpace,
   rejectParkingSpace,
   getAllParkingSpaces,

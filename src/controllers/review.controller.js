@@ -98,7 +98,6 @@ const getReviews = asyncHandler(async (req, res, next) => {
 const getRatings = asyncHandler(async (req, res, next) => {
     try {
         const { spotIds } = req.query;
-        console.log(spotIds)
         const parkingSpaces = await ParkingSpace.find({ _id: { $in: spotIds } }).populate("reviews");
         if (!parkingSpaces.length) {
             throw new APIError(404, "Parking spaces not found");

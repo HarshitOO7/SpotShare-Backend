@@ -17,6 +17,7 @@ const router = Router();
 
 router.post("/register", registerUser);
 router.get("/me", auth, getUserDetails);
+router.get("/verify-token", auth, (req, res) => res.send("Token is valid") );
 router.post("/avatar", auth, upload.single("profilePhoto"), updateAvatar);
 router.get("/parking-spaces", auth, getParkingSpaces);
 router.get("/admin", auth, isAdmin, isUserAdmin);

@@ -7,7 +7,6 @@ const auth = async (req, res, next) => {
     if (!idToken) {
         return next(new APIError(401, "Unauthorized"));
     }
-
     try {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         req.user = { uid: decodedToken.uid}
@@ -15,7 +14,6 @@ const auth = async (req, res, next) => {
     } catch (error) {
         return next(new APIError(401, "Unauthorized"));
     }
-
 };
 
 export { auth };
