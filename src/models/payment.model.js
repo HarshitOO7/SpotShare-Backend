@@ -16,11 +16,6 @@ const paymentSchema = new Schema({
         type: Number,
         required: true,
     },
-    paymentMethod: {
-        type: String,
-        enum: ['Credit Card', 'PayPal', 'Bank Transfer'],
-        required: true,
-    },
     paymentStatus: {
         type: String,
         enum: ['Pending', 'Completed', 'Failed'],
@@ -29,6 +24,10 @@ const paymentSchema = new Schema({
     transactionDate: {
         type: Date,
         default: Date.now,
+    },
+    transactionId: {
+        type: String,
+        required: true,
     },
 
 }, { timestamps: true });

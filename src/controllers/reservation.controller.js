@@ -7,13 +7,12 @@ import { User } from '../models/user.model.js';
 import { sendEmail } from '../utils/mailer.js';
 
 const createReservation = asyncHandler(async (req, res) => {
-    const { userEmail, parkingSpaceId, startTime, endTime, totalPrice, vehicleReg } = req.body;
-
-    if (!userEmail || !parkingSpaceId || !startTime || !endTime || !totalPrice || !vehicleReg) {
+    const { parkingSpaceId, startTime, endTime, totalPrice, vehicleReg } = req.body;
+    if (!parkingSpaceId || !startTime || !endTime || !totalPrice || !vehicleReg) {
         throw new APIError(400, 'All fields are required');
     }
 
-    const user = await User.findOne({ email: userEmail });
+    const user = await User.findOne({ uid: req.user.uid});
     if (!user) {
         throw new APIError(404, 'User not found');
     }
@@ -98,7 +97,7 @@ const createReservation = asyncHandler(async (req, res) => {
             <li>Total Price: ${totalPrice}</li>
             <li>Vehicle Registration: ${vehicleReg}</li>
         </ul>
-        <p>View the reservation: <a href="http://localhost:3000/reservations/${newReservation._id}">here</a></p>
+        <p>View the reservation: <a href="${process.env.CLIENT_URL}/reservations/${newReservation._id}">here</a></p>
         <p>Thank you,</p>
         <p>SpotShare Team</p>
     `;
