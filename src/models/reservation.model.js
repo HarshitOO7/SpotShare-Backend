@@ -36,7 +36,7 @@ const reservationSchema = new Schema({
         type: Boolean,
         default: false,
     },
-    paymentIntentId: {
+    paymentId: {
         type: String,
     },
     paymentStatus: {

@@ -25,10 +25,6 @@ const paymentSchema = new Schema({
         type: Date,
         default: Date.now,
     },
-    transactionId: {
-        type: String,
-        required: true,
-    },
 
 }, { timestamps: true });
 
