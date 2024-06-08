@@ -7,7 +7,8 @@ import {
   isUserAdmin,
   getProfilePhoto,
   receiveContactMessage,
-  getUserReservations
+  getUserReservations,
+  cronjob
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { auth } from "../middlewares/auth.middleware.js";
@@ -24,5 +25,7 @@ router.get("/admin", auth, isAdmin, isUserAdmin);
 router.get("/profile-photo", auth, getProfilePhoto);
 router.post("/contact", receiveContactMessage);
 router.get("/reservations", auth, getUserReservations);
+router.get("/cron", cronjob);
+
 
 export default router;

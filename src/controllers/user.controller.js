@@ -172,6 +172,11 @@ const getUserReservations = asyncHandler(async (req, res) => {
     res.status(200).json(new APIResponse(200, reservationParkingInfo, 'Reservations retrieved successfully'));
 });
 
+
+const cronjob = asyncHandler(async (req, res) => {
+    res.status(200).json(new APIResponse(200, null, 'OK'));
+});
+
 export { 
     registerUser,
     getUserDetails,
@@ -180,5 +185,6 @@ export {
     isUserAdmin,
     getProfilePhoto,
     receiveContactMessage,
-    getUserReservations
+    getUserReservations,
+    cronjob
 }
