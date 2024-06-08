@@ -174,7 +174,7 @@ const getUserReservations = asyncHandler(async (req, res) => {
 
 
 const cronjob = asyncHandler(async (req, res) => {
-    res.status(200).json(200, null, "OK");
+    res.send("OK");
 });
 
 export { 
