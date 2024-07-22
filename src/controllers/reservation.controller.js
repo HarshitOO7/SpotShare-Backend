@@ -64,6 +64,9 @@ const createReservation = asyncHandler(async (req, res) => {
         throw new APIError(400, 'Parking space is not available at the requested time');
     }
 
+    // CHECK IF PAYMENT IS SUCCESSFUL BEFORE CREATING RESERVATION
+
+
     const newReservation = new Reservation({
         user: user._id,
         parkingSpace: parkingSpaceId,
@@ -186,5 +189,18 @@ const getAllParkingSpaceReservations = asyncHandler(async (req, res) => {
 });
 
 
+const deleteReservation = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const reservation = await Reservation.findById(id);
 
-export { createReservation, approveReservation, rejectReservation, getReservations, getReservationById, getAllParkingSpaceReservations };
+    if (!reservation) {
+        throw new APIError(404, 'Reservation not found');
+    }
+
+    await reservation.remove();
+
+    res.status(200).json(new APIResponse(200, {}, 'Reservation deleted successfully'));
+});
+
+
+export { createReservation, approveReservation, rejectReservation, getReservations, getReservationById, getAllParkingSpaceReservations, deleteReservation };

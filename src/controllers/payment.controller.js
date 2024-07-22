@@ -122,4 +122,55 @@ const cancelPayment = asyncHandler(async (req, res, next) => {
     res.status(200).json(new APIResponse('Payment cancelled successfully'));
 });
 
-export { createPaymentSession, confirmPayment, cancelPayment };
+const stripeWebhook = asyncHandler(async (req, res, next) => {
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.log(`⚠️  Webhook signature verification failed.`, err.message);
+    return res.sendStatus(400);
+  }
+
+  switch (event.type) {
+    case 'checkout.session.completed':
+      await handleCheckoutSessionCompleted(event.data.object);
+      break;
+    case 'checkout.session.expired':
+      await handleCheckoutSessionExpired(event.data.object);
+      break;
+    default:
+      console.log(`Unhandled event type ${event.type}`);
+  }
+
+  res.sendStatus(200);
+});
+
+const handleCheckoutSessionCompleted = async (session) => {
+    const reservationId = session.metadata.reservationId;
+    const reservation = await Reservation.findById(reservationId);
+  
+    if (reservation) {
+      reservation.paymentStatus = 'succeeded';
+      await reservation.save();
+  
+      await Payment.create({
+        reservation: reservationId,
+        amount: session.amount_total / 100,
+        paymentStatus: 'Completed',
+        transactionDate: Date.now(),
+      });
+    }
+  };
+  
+  const handleCheckoutSessionExpired = async (session) => {
+    const reservationId = session.metadata.reservationId;
+    const reservation = await Reservation.findById(reservationId);
+  
+    if (reservation && reservation.paymentStatus !== 'succeeded') {
+      await Reservation.findByIdAndDelete(reservationId);
+    }
+  };
+
+
+export { createPaymentSession, confirmPayment, cancelPayment, stripeWebhook };
