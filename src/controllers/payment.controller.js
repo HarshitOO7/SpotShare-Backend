@@ -10,49 +10,46 @@ import { User } from '../models/user.model.js';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 const createPaymentSession = asyncHandler(async (req, res, next) => {
-try {
-        const { reservationId, amount  } = req.body;
-    
-        const reservation = await Reservation.findById(reservationId).populate('parkingSpace');
+  try {
+      const { parkingSpaceId, amount, metadata } = req.body;
 
-        if (!reservation) {
-            return next(new APIError('Reservation not found', 404));
-        }
-    
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            line_items: [
-                {
-                    price_data: {
-                        currency: 'cad',
-                        product_data: {
-                            name: reservation.parkingSpace.title,
-                            description: reservation.parkingSpace.description,
-                        },
-                        unit_amount: amount * 100,
-                    },
-                    quantity: 1,
-                },
-            ],
-            mode: 'payment',
-            success_url: `${process.env.CLIENT_URL}/payment-success?reservationId=${reservationId}`,
-            cancel_url: `${process.env.CLIENT_URL}/payment-failed?reservationId=${reservationId}`,
-            metadata: {
-                reservationId: reservationId,
-            },
-        });
+      const parkingSpace = await ParkingSpace.findById(parkingSpaceId);
 
-        if(!session) {
-            return next(new APIError('Failed to create payment session', 500));
-        }
-        
-    
-        res.status(200)
-        .json(new APIResponse('Payment session created successfully', { url: session.url}));
-} catch (error) {
-        next(new APIError('Failed to create payment session', 500));
-}
+      if (!parkingSpace) {
+          return next(new APIError('Parking space not found', 404));
+      }
+
+      const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          line_items: [
+              {
+                  price_data: {
+                      currency: 'cad',
+                      product_data: {
+                          name: parkingSpace.title,
+                          description: parkingSpace.description,
+                      },
+                      unit_amount: amount * 100,
+                  },
+                  quantity: 1,
+              },
+          ],
+          mode: 'payment',
+          success_url: `${process.env.CLIENT_URL}/reservation/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${process.env.CLIENT_URL}/reservation/cancel`,
+          metadata: metadata,
+      });
+
+      if (!session) {
+          return next(new APIError('Failed to create payment session', 500));
+      }
+
+      res.status(200).json(new APIResponse('Payment session created successfully', { url: session.url }));
+  } catch (error) {
+      next(new APIError('Failed to create payment session', 500));
+  }
 });
+
 
 const confirmPayment = asyncHandler(async (req, res, next) => {
     const { reservationId } = req.params;
@@ -147,21 +144,29 @@ const stripeWebhook = asyncHandler(async (req, res, next) => {
 });
 
 const handleCheckoutSessionCompleted = async (session) => {
-    const reservationId = session.metadata.reservationId;
-    const reservation = await Reservation.findById(reservationId);
-  
-    if (reservation) {
-      reservation.paymentStatus = 'succeeded';
-      await reservation.save();
-  
-      await Payment.create({
-        reservation: reservationId,
-        amount: session.amount_total / 100,
-        paymentStatus: 'Completed',
-        transactionDate: Date.now(),
+  const { spotId, vehicleReg, startTime, endTime, totalPrice } = session.metadata;
+
+  const parkingSpace = await ParkingSpace.findById(spotId);
+
+  if (parkingSpace) {
+      const reservation = await Reservation.create({
+          parkingSpace: spotId,
+          vehicleReg: vehicleReg,
+          startTime: startTime,
+          endTime: endTime,
+          totalPrice: totalPrice,
+          paymentStatus: 'succeeded',
       });
-    }
-  };
+
+      await Payment.create({
+          reservation: reservation._id,
+          amount: session.amount_total / 100,
+          paymentStatus: 'Completed',
+          transactionDate: Date.now(),
+      });
+  }
+};
+
   
   const handleCheckoutSessionExpired = async (session) => {
     const reservationId = session.metadata.reservationId;
@@ -172,5 +177,17 @@ const handleCheckoutSessionCompleted = async (session) => {
     }
   };
 
+const retrieveSession = asyncHandler(async (req, res, next) => {
+  const { sessionId } = req.params;
 
-export { createPaymentSession, confirmPayment, cancelPayment, stripeWebhook };
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    res.status(200).json({ data: session });
+  } catch (error) {
+    res.status(404).json({ error: 'Session not found' });
+  }
+}
+);
+
+
+export { createPaymentSession, confirmPayment, cancelPayment, stripeWebhook, retrieveSession };
