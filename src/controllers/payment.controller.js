@@ -84,98 +84,6 @@ const confirmPayment = asyncHandler(async (req, res, next) => {
     res.status(200).json(new APIResponse('Payment confirmed successfully'));
 });
 
-const cancelPayment = asyncHandler(async (req, res, next) => {
-    const { reservationId } = req.params;
-    const user = await User.findOne({uid: req.user.uid}).exec();
-
-    if (!user) {
-        return next(new APIError('User not found', 404));
-    }
-
-    const reservation = await Reservation.findOne({ _id: reservationId, user: user._id }).exec();
-
-    if (!reservation) {
-        return next(new APIError('Reservation not found', 404));
-    }
-
-    if (reservation.paymentStatus !== 'pending') {
-        return next(new APIError('Cannot cancel payment', 400));
-    }
-
-    const parkingSpace = await ParkingSpace.updateOne({ _id: reservation.parkingSpace, reservations: reservation._id }, {
-        $pull: { reservations: reservation._id }
-    }).exec();
-
-    if (parkingSpace.nModified === 0) {
-        return next(new APIError('Parking space not found or reservation not found in parking space', 404));
-    }
-
-    await User.updateOne({ _id: user._id }, {
-        $pull: { reservations: reservation._id }
-    }).exec();
-
-    await Reservation.findByIdAndDelete(reservation._id).exec();
-    
-    res.status(200).json(new APIResponse('Payment cancelled successfully'));
-});
-
-const stripeWebhook = asyncHandler(async (req, res, next) => {
-  let event;
-
-  try {
-    event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET);
-  } catch (err) {
-    console.log(`⚠️  Webhook signature verification failed.`, err.message);
-    return res.sendStatus(400);
-  }
-
-  switch (event.type) {
-    case 'checkout.session.completed':
-      await handleCheckoutSessionCompleted(event.data.object);
-      break;
-    case 'checkout.session.expired':
-      await handleCheckoutSessionExpired(event.data.object);
-      break;
-    default:
-      console.log(`Unhandled event type ${event.type}`);
-  }
-
-  res.sendStatus(200);
-});
-
-const handleCheckoutSessionCompleted = async (session) => {
-  const { spotId, vehicleReg, startTime, endTime, totalPrice } = session.metadata;
-
-  const parkingSpace = await ParkingSpace.findById(spotId);
-
-  if (parkingSpace) {
-      const reservation = await Reservation.create({
-          parkingSpace: spotId,
-          vehicleReg: vehicleReg,
-          startTime: startTime,
-          endTime: endTime,
-          totalPrice: totalPrice,
-          paymentStatus: 'succeeded',
-      });
-
-      await Payment.create({
-          reservation: reservation._id,
-          amount: session.amount_total / 100,
-          paymentStatus: 'Completed',
-          transactionDate: Date.now(),
-      });
-  }
-};
-
-  
-  const handleCheckoutSessionExpired = async (session) => {
-    const reservationId = session.metadata.reservationId;
-    const reservation = await Reservation.findById(reservationId);
-  
-    if (reservation && reservation.paymentStatus !== 'succeeded') {
-      await Reservation.findByIdAndDelete(reservationId);
-    }
-  };
 
 const retrieveSession = asyncHandler(async (req, res, next) => {
   const { sessionId } = req.params;
@@ -190,4 +98,4 @@ const retrieveSession = asyncHandler(async (req, res, next) => {
 );
 
 
-export { createPaymentSession, confirmPayment, cancelPayment, stripeWebhook, retrieveSession };
+export { createPaymentSession, confirmPayment, retrieveSession };
