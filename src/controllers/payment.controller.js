@@ -19,6 +19,26 @@ const createPaymentSession = asyncHandler(async (req, res, next) => {
           return next(new APIError('Parking space not found', 404));
       }
 
+      // check if the parking space is available for the selected time
+        const reservations = await Reservation.find({
+            parkingSpace: parkingSpaceId,
+            status: { $in: ['Pending', 'Approved'] },
+            $or: [
+                {
+                    startTime: { $lte: metadata.startTime },
+                    endTime: { $gte: metadata.startTime },
+                },
+                {
+                    startTime: { $lte: metadata.endTime },
+                    endTime: { $gte: metadata.endTime },
+                },
+            ],
+        });
+
+        if (reservations.length > 0) {
+            return next(new APIError('Parking space is not available for the selected time', 400));
+        }
+
       const session = await stripe.checkout.sessions.create({
           payment_method_types: ['card'],
           line_items: [
