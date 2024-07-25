@@ -92,7 +92,7 @@ const cancelPayment = asyncHandler(async (req, res, next) => {
         return next(new APIError('User not found', 404));
     }
 
-    const reservation = await Reservation.findOne({ _id: reservationId, user: user._id }).exec();
+    const reservation = await Reservation.findById(reservationId).exec();
 
     if (!reservation) {
         return next(new APIError('Reservation not found', 404));
