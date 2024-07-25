@@ -7,7 +7,7 @@ import { sendEmail } from '../utils/mailer.js';
 import { Reservation } from '../models/reservation.model.js';
 const registerUser = asyncHandler(async (req, res) => 
     {
-        const { uid, fullName, email, phoneNumber} = req.body
+        const { uid, fullName, email, phoneNumber, photoUrl} = req.body
 
         if ([uid, fullName, email, phoneNumber].some((field) => field?.trim() === "")) {
             throw new APIError(400, "All fields are required")
@@ -17,12 +17,18 @@ const registerUser = asyncHandler(async (req, res) =>
             throw new APIError(400, "User already exists")
         }
 
-        const user = await User.create({
+        const userDetails = {
             uid,
             fullName,
             email,
-            phoneNumber
-        })
+            phoneNumber,
+        }
+
+        if (photoUrl) {
+            userDetails.profilePhoto = photoUrl
+        }
+
+        const user = await User.create(userDetails)
 
         const createdUser = await User.findById(user._id).select("-uid")
 
