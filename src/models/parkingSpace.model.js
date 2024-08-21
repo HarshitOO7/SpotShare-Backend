@@ -82,6 +82,10 @@ const parkingSpaceSchema = new Schema({
         type: Boolean,
         default: true
     },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
     availableTill: {
         type: Date,
         required: true

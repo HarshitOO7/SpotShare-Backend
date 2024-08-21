@@ -94,8 +94,11 @@ const getParkingSpaces = asyncHandler(async (req, res) => {
     if (!user) {
         throw new APIError(404, "User not found")
     }
+
+    const parkingSpaces = user.parkingSpaces.filter(space => space && space.isActive)
+    
     return res.status(200).json(
-        new APIResponse(200, user.parkingSpaces, "User parking spaces retrieved successfully")
+        new APIResponse(200, parkingSpaces, "User parking spaces retrieved successfully")
     )
 });
 

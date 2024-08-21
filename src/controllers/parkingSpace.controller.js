@@ -177,11 +177,14 @@ const updateParkingSpace = asyncHandler(async (req, res) => {
 const removeParkingSpace = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const parkingSpace = await ParkingSpace.findByIdAndDelete(id);
+  const parkingSpace = await ParkingSpace.findById(id);
 
   if (!parkingSpace) {
     throw new APIError(404, "Parking space not found");
   }
+
+  parkingSpace.isActive = false;
+  await parkingSpace.save();
 
   return res
     .status(200)
@@ -249,6 +252,7 @@ const findNearbyParkingSpaces = asyncHandler(async (req, res) => {
     },
     availableTill: { $gte: timeOutDate },
     isAvailable: true,
+    isActive: true,
   })
     .populate("reservations")
     .lean(); // Use lean to get plain JavaScript objects instead of Mongoose documents
