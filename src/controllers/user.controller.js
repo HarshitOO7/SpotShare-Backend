@@ -5,130 +5,138 @@ import { APIResponse } from '../utils/APIResponse.js';
 import { uploadProfilePhotoOnCloudinary } from '../utils/cloudinary.js';
 import { sendEmail } from '../utils/mailer.js';
 import { Reservation } from '../models/reservation.model.js';
-const registerUser = asyncHandler(async (req, res) => 
-    {
-        const { uid, fullName, email, phoneNumber, photoUrl} = req.body
 
-        if ([uid, fullName, email, phoneNumber].some((field) => field?.trim() === "")) {
-            throw new APIError(400, "All fields are required")
-        }
+const escapeHtml = (str) => String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 
-        if (await User.findOne({ $or: [{ email }, { uid }] })) {
-            throw new APIError(400, "User already exists")
-        }
+const registerUser = asyncHandler(async (req, res) => {
+    // uid comes from the verified Firebase token (req.user set by auth middleware)
+    const uid = req.user.uid;
+    const { fullName, email, phoneNumber, photoUrl } = req.body;
 
-        const userDetails = {
-            uid,
-            fullName,
-            email,
-            phoneNumber,
-        }
-
-        if (photoUrl) {
-            userDetails.profilePhoto = photoUrl
-        }
-
-        const user = await User.create(userDetails)
-
-        const createdUser = await User.findById(user._id).select("-uid")
-
-        if (!user) {
-            throw new APIError(500, "User not created")
-        }
-
-        return res.status(201).json(
-            new APIResponse(201, createdUser, "User registered successfully")
-        )
+    if ([fullName, email, phoneNumber].some((field) => field?.trim() === "")) {
+        throw new APIError(400, "All fields are required");
     }
-);
+
+    if (await User.findOne({ $or: [{ email }, { uid }] })) {
+        throw new APIError(400, "User already exists");
+    }
+
+    const userDetails = {
+        uid,
+        fullName,
+        email,
+        phoneNumber,
+    };
+
+    if (photoUrl) {
+        userDetails.profilePhoto = photoUrl;
+    }
+
+    const user = await User.create(userDetails);
+
+    const createdUser = await User.findById(user._id).select("-uid");
+
+    if (!user) {
+        throw new APIError(500, "User not created");
+    }
+
+    return res.status(201).json(
+        new APIResponse(201, createdUser, "User registered successfully")
+    );
+});
 
 const getUserDetails = asyncHandler(async (req, res) => {
     try {
-            const user = await User.findOne({uid: req.user.uid}).select("-uid")
-            if (!user) {
-                throw new APIError(404, "User not found")
-            }
-        
-            
-            return res.status(200).json(
-                new APIResponse(200, user, "User details retrieved successfully")
-            )
+        const user = await User.findOne({ uid: req.user.uid }).select("-uid");
+        if (!user) {
+            throw new APIError(404, "User not found");
+        }
+
+        return res.status(200).json(
+            new APIResponse(200, user, "User details retrieved successfully")
+        );
     } catch (error) {
-        console.error(error)
-        throw new APIError(500, "Something went wrong while getting user details")
+        throw new APIError(500, "Something went wrong while getting user details");
     }
 });
 
 const updateAvatar = asyncHandler(async (req, res) => {
-    // get the image from the request body and upload it to cloudinary but upload using multer middleware
-    const image = req.file?.path
+    const image = req.file?.path;
     if (!image) {
-        throw new APIError(400, "Please upload an image")
+        throw new APIError(400, "Please upload an image");
     }
 
-    const result = await uploadProfilePhotoOnCloudinary(image)
+    const result = await uploadProfilePhotoOnCloudinary(image);
 
     if (!result) {
-        throw new APIError(500, "Something went wrong while uploading profile photo")
+        throw new APIError(500, "Something went wrong while uploading profile photo");
     }
 
-    // update the user profile photo in the database
     const user = await User.findOneAndUpdate(
         { uid: req.user.uid },
         { profilePhoto: result.secure_url },
         { new: true }
-    )
+    );
 
     if (!user) {
-        throw new APIError(500, "Something went wrong while updating profile photo")
+        throw new APIError(500, "Something went wrong while updating profile photo");
     }
 
     return res.status(200).json(
         new APIResponse(200, user, "Profile photo updated successfully")
-    )
+    );
 });
 
-
 const getParkingSpaces = asyncHandler(async (req, res) => {
-    const user = await User.findOne({uid: req.user.uid}).populate("parkingSpaces")
+    const user = await User.findOne({ uid: req.user.uid }).populate("parkingSpaces");
     if (!user) {
-        throw new APIError(404, "User not found")
+        throw new APIError(404, "User not found");
     }
 
-    const parkingSpaces = user.parkingSpaces.filter(space => space && space.isActive)
-    
+    const parkingSpaces = user.parkingSpaces.filter(space => space && space.isActive);
+
     return res.status(200).json(
         new APIResponse(200, parkingSpaces, "User parking spaces retrieved successfully")
-    )
+    );
 });
 
 const isUserAdmin = asyncHandler(async (req, res) => {
-    const user = await User.findOne({uid: req.user.uid})
+    const user = await User.findOne({ uid: req.user.uid });
     if (!user) {
-        throw new APIError(404, "User not found")
+        throw new APIError(404, "User not found");
     }
     if (user.role !== "admin") {
-        
-        throw new APIError(403, "Access denied, admin only")
+        throw new APIError(403, "Access denied, admin only");
     }
     return res.status(200).json(
         new APIResponse(200, user, "User is an admin")
-    )
+    );
 });
 
 const getProfilePhoto = asyncHandler(async (req, res) => {
-    const user = await User.findOne({uid: req.user.uid})
+    const user = await User.findOne({ uid: req.user.uid });
     if (!user) {
-        throw new APIError(404, "User not found")
+        throw new APIError(404, "User not found");
     }
     return res.status(200).json(
         new APIResponse(200, user.profilePhoto, "User profile photo retrieved successfully")
-    )
+    );
 });
 
 // Contact helper function
 const receiveContactMessage = asyncHandler(async (req, res) => {
     const { name, email, message } = req.body;
+
+    // Escape all user-supplied input before HTML interpolation
+    const safeName = escapeHtml(name || '');
+    const safeEmail = escapeHtml(email || '');
+    const safeMessage = escapeHtml(message || '');
+
     const messageBody = `
     <html>
     <head>
@@ -143,8 +151,8 @@ const receiveContactMessage = asyncHandler(async (req, res) => {
     <table style="width: 100%;">
     <tr>
     <td><p style="text-align: center; display: block;  padding-bottom:20px;  margin-bottom:20px; border-bottom:1px solid #dddddd; width:50px"><img src="https://raw.githubusercontent.com/Zeethx/SpotShare/master/public/images/spotshare_horizontal.png"/></p>
-    <h1 style="font-weight: 200; font-size: 36px; margin: 20px 0 30px 0; color: #333333;">From ${name}: ${email}</h1>
-    <p style="margin-bottom: 10px; font-weight: normal; font-size:16px; color: #333333;">${message}</p>
+    <h1 style="font-weight: 200; font-size: 36px; margin: 20px 0 30px 0; color: #333333;">From ${safeName}: ${safeEmail}</h1>
+    <p style="margin-bottom: 10px; font-weight: normal; font-size:16px; color: #333333;">${safeMessage}</p>
     <p style="text-align: center; display: block; padding-top:20px; font-weight: bold; margin-top:30px; color: #666666; border-top:1px solid #dddddd;">SpotShare</p></td>
     </tr>
     </table>
@@ -160,11 +168,9 @@ const receiveContactMessage = asyncHandler(async (req, res) => {
         await sendEmail(email, "spotshare3@gmail.com", "Contact Form Submission", messageBody);
         res.status(200).json(new APIResponse(200, null, "Message sent successfully"));
     } catch (error) {
-        console.error(error);
         throw new APIError(500, "Failed to send message");
     }
-}
-);
+});
 
 const getUserReservations = asyncHandler(async (req, res) => {
     const user = await User.findOne({ uid: req.user.uid }).populate('reservationHistory');
@@ -172,7 +178,6 @@ const getUserReservations = asyncHandler(async (req, res) => {
         throw new APIError(404, 'User not found');
     }
 
-    // Find reservations using the reservationHistory array from the user and populate parkingSpace info
     const reservationParkingInfo = await Reservation.find({ _id: { $in: user.reservationHistory } }).populate('parkingSpace');
     if (!reservationParkingInfo) {
         throw new APIError(404, 'Reservations not found');
@@ -181,12 +186,11 @@ const getUserReservations = asyncHandler(async (req, res) => {
     res.status(200).json(new APIResponse(200, reservationParkingInfo, 'Reservations retrieved successfully'));
 });
 
-
 const cronjob = asyncHandler(async (req, res) => {
     res.send("OK");
 });
 
-export { 
+export {
     registerUser,
     getUserDetails,
     updateAvatar,

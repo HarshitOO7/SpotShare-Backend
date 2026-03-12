@@ -47,6 +47,11 @@ const reservationSchema = new Schema({
     vehicleReg: {
         type: String,
         required: true,
+    },
+    stripeSessionId: {
+        type: String,
+        unique: true,
+        sparse: true, // allows multiple documents with no stripeSessionId
     }
 
 }, { timestamps: true });

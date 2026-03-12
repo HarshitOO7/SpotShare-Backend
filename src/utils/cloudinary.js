@@ -12,7 +12,7 @@ const uploadProfilePhotoOnCloudinary = async (localFilePath) => {
     try {
         if (!localFilePath) return null;
         const result = await cloudinary.uploader.upload(localFilePath, {
-            resource_type: "auto",
+            resource_type: "image",
             folder: "profile-photos"
         });
         fs.unlinkSync(localFilePath);
@@ -27,7 +27,7 @@ const uploadOnCloudinary = async (localFilePath) => {
     try {
         if (!localFilePath) return null;
         const result = await cloudinary.uploader.upload(localFilePath, {
-            resource_type: "auto",
+            resource_type: "image",
             folder: "parkingSpaces"
         });
         fs.unlinkSync(localFilePath);

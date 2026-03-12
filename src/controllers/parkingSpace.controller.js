@@ -35,7 +35,6 @@ const transformCustomTimes = (customTimes) => {
 
 const createParkingSpace = asyncHandler(async (req, res) => {
   const {
-    owner,
     address,
     spotType,
     vehicleSize,
@@ -54,7 +53,6 @@ const createParkingSpace = asyncHandler(async (req, res) => {
   // Validate required fields
   if (
     [
-      owner,
       address,
       spotType,
       vehicleSize,
@@ -77,10 +75,10 @@ const createParkingSpace = asyncHandler(async (req, res) => {
     throw new APIError(400, "You can only upload a maximum of 6 images");
   }
 
-  // Convert owner email to ObjectId
-  const user = await User.findOne({ email: owner });
+  // Owner is always the authenticated user — never trust client-supplied owner
+  const user = await User.findOne({ uid: req.user.uid });
   if (!user) {
-    throw new APIError(400, "Owner not found");
+    throw new APIError(404, "User not found");
   }
 
   // Get coordinates from address using Google Maps Geocoding API
@@ -145,7 +143,12 @@ const updateParkingSpace = asyncHandler(async (req, res) => {
       throw new APIError(404, "Parking space not found");
   }
 
-  // Validate required fields
+  // Verify caller owns this parking space (or is admin)
+  const requestingUser = await User.findOne({ uid: req.user.uid });
+  if (!requestingUser || (parkingSpace.owner.toString() !== requestingUser._id.toString() && requestingUser.role !== 'admin')) {
+      throw new APIError(403, "Unauthorized: only the owner can update this parking space");
+  }
+
   const updatedParkingSpace = await ParkingSpace.findByIdAndUpdate
   (id, {
       owner: parkingSpace.owner,
@@ -183,6 +186,12 @@ const removeParkingSpace = asyncHandler(async (req, res) => {
     throw new APIError(404, "Parking space not found");
   }
 
+  // Verify caller owns this parking space (or is admin)
+  const requestingUser = await User.findOne({ uid: req.user.uid });
+  if (!requestingUser || (parkingSpace.owner.toString() !== requestingUser._id.toString() && requestingUser.role !== 'admin')) {
+      throw new APIError(403, "Unauthorized: only the owner can remove this parking space");
+  }
+
   parkingSpace.isActive = false;
   await parkingSpace.save();
 
@@ -196,7 +205,7 @@ const removeParkingSpace = asyncHandler(async (req, res) => {
 
 
 const getParkingSpaces = asyncHandler(async (req, res) => {
-  const parkingSpaces = await ParkingSpace.find();
+  const parkingSpaces = await ParkingSpace.find({ status: 'Approved', isActive: true });
 
   return res
     .status(200)
