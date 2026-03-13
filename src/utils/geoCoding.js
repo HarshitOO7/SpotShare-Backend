@@ -9,6 +9,10 @@ const getCoordinates = async (address) => {
             }
         });
 
+        // MED-5: Guard against empty results (invalid address) to avoid TypeError
+        if (!response.data.results?.length) {
+            throw new Error('Address not found — no results from geocoding API');
+        }
         const { lat, lng } = response.data.results[0].geometry.location;
         return { lat, lng };
     } catch (error) {

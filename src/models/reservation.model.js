@@ -56,4 +56,8 @@ const reservationSchema = new Schema({
 
 }, { timestamps: true });
 
+// PERF-2: Indexes for frequent query patterns
+reservationSchema.index({ parkingSpace: 1, status: 1 });  // getAllParkingSpaceReservations filter
+reservationSchema.index({ user: 1 });                      // getUserReservations
+
 export const Reservation = mongoose.model('Reservation', reservationSchema);

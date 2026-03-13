@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Review } from '../models/review.model.js';
 import { Reservation } from '../models/reservation.model.js';
 import { ParkingSpace } from '../models/parkingSpace.model.js';
@@ -5,6 +6,7 @@ import { User } from '../models/user.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { APIError } from '../utils/APIError.js';
 import { APIResponse } from '../utils/APIResponse.js';
+import { RESERVATION_STATUS } from '../constants.js';
 
 const createReview = asyncHandler(async (req, res, next) => {
     try {
@@ -30,6 +32,16 @@ const createReview = asyncHandler(async (req, res, next) => {
             throw new APIError(400, "Reservation has not ended yet");
         }
 
+        // CRIT-4: Verify reviewer owns the reservation
+        if (reservation.user.toString() !== user._id.toString()) {
+            throw new APIError(403, "You can only review your own reservations");
+        }
+
+        // MED-11: Only allow reviews on Approved reservations
+        if (reservation.status !== RESERVATION_STATUS.APPROVED) {
+            throw new APIError(400, "Can only review an approved reservation");
+        }
+
         const review = new Review({
             user: user._id,
             parkingSpace: parkingId,
@@ -38,15 +50,24 @@ const createReview = asyncHandler(async (req, res, next) => {
             comment
         });
 
-        await review.save();
-        parkingSpace.reviews.push(review._id);
-        await parkingSpace.save();
+        // HIGH-4: Transaction — all three writes succeed or none do
+        const dbSession = await mongoose.startSession();
+        await dbSession.withTransaction(async () => {
+            await review.save({ session: dbSession });
+            await ParkingSpace.findByIdAndUpdate(
+                parkingId,
+                { $push: { reviews: review._id } },
+                { session: dbSession }
+            );
+            await Reservation.findByIdAndUpdate(
+                reservationId,
+                { review: review._id, status: RESERVATION_STATUS.COMPLETED },
+                { session: dbSession }
+            );
+        });
+        await dbSession.endSession();
 
-        reservation.review = review._id;
-        reservation.status = "Completed";
-        await reservation.save();
-
-        return res.status(201).json(new APIResponse(201, "Review created successfully", { review }));
+        return res.status(201).json(new APIResponse(201, { review }, "Review created successfully"));
     } catch (error) {
         next(error);
     }
@@ -56,37 +77,25 @@ const getReviews = asyncHandler(async (req, res, next) => {
     try {
         const { spotId } = req.params;
 
-        const parkingSpace = await ParkingSpace.findById(spotId).populate("reviews");
+        // PERF-1: Nested populate replaces the separate User.find query (eliminates N+1)
+        const parkingSpace = await ParkingSpace.findById(spotId).populate({
+            path: 'reviews',
+            populate: { path: 'user', select: 'fullName profilePhoto' },
+        });
         if (!parkingSpace) {
             throw new APIError(404, "Parking space not found");
         }
 
-        //info about the user who posted the review
-        const reviews = parkingSpace.reviews.map((review) => {
-            return {
-                id: review._id,
-                rating: review.rating,
-                comment: review.comment,
-                user: review.user,
-                createdAt: review.createdAt
-            };
-        });
-
-        const users = await User.find({ _id: { $in: reviews.map((review) => review.user) } });
-
-        const reviewsWithUsers = reviews.map((review) => {
-            const user = users.find((user) => user._id.equals(review.user));
-            return {
-                id: review.id,
-                rating: review.rating,
-                comment: review.comment,
-                user: {
-                    fullName: user.fullName,
-                    profilePhoto: user.profilePhoto  
-                },
-                createdAt: review.createdAt
-            };
-        });
+        const reviewsWithUsers = parkingSpace.reviews.map((review) => ({
+            id: review._id,
+            rating: review.rating,
+            comment: review.comment,
+            user: {
+                fullName: review.user?.fullName,
+                profilePhoto: review.user?.profilePhoto,
+            },
+            createdAt: review.createdAt,
+        }));
 
         return res.status(200).json(new APIResponse(200, reviewsWithUsers, "Reviews retrieved successfully"));
 
@@ -98,7 +107,9 @@ const getReviews = asyncHandler(async (req, res, next) => {
 const getRatings = asyncHandler(async (req, res, next) => {
     try {
         const { spotIds } = req.query;
-        const parkingSpaces = await ParkingSpace.find({ _id: { $in: spotIds } }).populate("reviews");
+        // MED-3: Cap to 50 IDs to prevent DoS via unbounded $in query
+        const ids = (Array.isArray(spotIds) ? spotIds : [spotIds]).slice(0, 50);
+        const parkingSpaces = await ParkingSpace.find({ _id: { $in: ids } }).populate("reviews");
         if (!parkingSpaces.length) {
             throw new APIError(404, "Parking spaces not found");
         }

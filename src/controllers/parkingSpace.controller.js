@@ -81,6 +81,12 @@ const createParkingSpace = asyncHandler(async (req, res) => {
     throw new APIError(404, "User not found");
   }
 
+  // HIGH-7: Validate that all image URLs come from our Cloudinary account
+  const CLOUDINARY_PREFIX = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/`;
+  if (!spotImages.every((image) => image.url?.startsWith(CLOUDINARY_PREFIX))) {
+    throw new APIError(400, "Invalid image URL: only Cloudinary-hosted images are allowed");
+  }
+
   // Get coordinates from address using Google Maps Geocoding API
   const { lat, lng } = await getCoordinates(address);
   const coordinates = [lng, lat]; // GeoJSON format
@@ -238,9 +244,16 @@ const findNearbyParkingSpaces = asyncHandler(async (req, res) => {
   }
 
   const [lat, lng] = location.split(",");
+  const latNum = parseFloat(lat);
+  const lngNum = parseFloat(lng);
 
-  if (isNaN(lat) || isNaN(lng)) {
+  if (isNaN(latNum) || isNaN(lngNum)) {
     return res.status(400).json({ error: "Invalid location format" });
+  }
+
+  // MED-4: Validate coordinate ranges
+  if (latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
+    return res.status(400).json({ error: "Coordinates out of range" });
   }
 
   // Convert timeIn and timeOut to Date objects
@@ -256,7 +269,7 @@ const findNearbyParkingSpaces = asyncHandler(async (req, res) => {
     status: "Approved",
     coordinates: {
       $geoWithin: {
-        $centerSphere: [[lng, lat], 8 / 6378.1], // radius in radians
+        $centerSphere: [[lngNum, latNum], 8 / 6378.1], // radius in radians
       },
     },
     availableTill: { $gte: timeOutDate },
@@ -309,7 +322,8 @@ const findNearbyParkingSpaces = asyncHandler(async (req, res) => {
 });
 
 const getParkingSpaceById = asyncHandler(async (req, res) => {
-  const parkingSpace = await ParkingSpace.findById(req.params.id);
+  // MED-9: Exclude accessInstructions (gate codes) from the public endpoint
+  const parkingSpace = await ParkingSpace.findById(req.params.id).select('-accessInstructions');
   if (!parkingSpace) {
     throw new APIError(404, "Parking space not found");
   }
@@ -344,16 +358,16 @@ const getUserParkingSpaceById = asyncHandler(async (req, res) => {
 const approveParkingSpace = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const parkingSpace = await ParkingSpace.findByIdAndUpdate(id, {
-    status: "Approved",
-    rejectionReason: "",
-  });
+  // HIGH-9: { new: true } returns the updated doc; removed extra .save() that was reverting the update
+  const parkingSpace = await ParkingSpace.findByIdAndUpdate(
+    id,
+    { status: "Approved", rejectionReason: "" },
+    { new: true }
+  );
 
   if (!parkingSpace) {
     throw new APIError(404, "Parking space not found");
   }
-
-  await parkingSpace.save();
 
   res
     .status(200)
@@ -383,13 +397,12 @@ const rejectParkingSpace = asyncHandler(async (req, res) => {
 });
 
 const getAllParkingSpaces = asyncHandler(async (req, res) => {
-  // Get all parking spaces
-  const parkingSpaces = await ParkingSpace.find();
+  // HIGH-8: Paginate to prevent loading entire collection into memory
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+  const skip = (page - 1) * limit;
 
-  if (!parkingSpaces) {
-    throw new APIError(404, "No parking spaces found");
-  }
-
+  const parkingSpaces = await ParkingSpace.find().skip(skip).limit(limit);
 
   return res
     .status(200)
@@ -400,7 +413,6 @@ const getAllParkingSpaces = asyncHandler(async (req, res) => {
         "All parking spaces retrieved successfully"
       )
     );
-
 });
 
 

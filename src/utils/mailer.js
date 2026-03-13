@@ -1,28 +1,28 @@
 // utils/mailer.js
 import nodemailer from 'nodemailer';
 
+// MED-2: Email address from env var — not hardcoded
+const SMTP_USER = process.env.SMTP_USER || 'spotshare3@gmail.com';
+
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: 'spotshare3@gmail.com',
+        user: SMTP_USER,
         pass: process.env.NODEMAILER_SMTP_PASS
     }
 });
 
-const sendEmail = async (from='spotshare3@gmail.com', to, subject, html) => {
+// MED-1: Always sends FROM our address; caller passes replyTo for user's address
+// New signature: sendEmail(to, subject, html, replyTo?)
+const sendEmail = async (to, subject, html, replyTo = null) => {
     const mailOptions = {
-        from,
+        from: SMTP_USER,
         to,
         subject,
-        html
+        html,
+        ...(replyTo && { replyTo }),
     };
-
-    try {
-        await transporter.sendMail(mailOptions);
-        console.log('Email sent successfully');
-    } catch (error) {
-        console.error('Error sending email:', error);
-    }
+    await transporter.sendMail(mailOptions);
 };
 
 export { sendEmail };

@@ -1,13 +1,17 @@
 import multer from 'multer';
 import path from 'path';
+import crypto from 'crypto';
 
 // Configure Multer storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'public/temp');
+    // HIGH-5: ./tmp is NOT served by express.static — files are never publicly accessible
+    cb(null, './tmp');
   },
   filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
+    // HIGH-5: Random UUID filename — unguessable even if someone knows a file was uploaded
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${crypto.randomUUID()}${ext}`);
   }
 });
 

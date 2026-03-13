@@ -8,7 +8,9 @@ import {
   getProfilePhoto,
   receiveContactMessage,
   getUserReservations,
-  cronjob
+  cronjob,
+  createSession,
+  logoutUser,
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { auth } from "../middlewares/auth.middleware.js";
@@ -23,9 +25,18 @@ const contactLimiter = rateLimit({
     message: { error: 'Too many contact requests. Please try again later.' },
 });
 
+// HIGH-3: Rate limiter for account creation
+const registerLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many registrations from this IP. Please try again later.' },
+});
+
 const router = Router();
 
-router.post("/register", auth, registerUser);
+router.post("/register", registerLimiter, auth, registerUser);
 router.get("/me", auth, getUserDetails);
 router.get("/verify-token", auth, (req, res) => res.send("Token is valid"));
 router.post("/avatar", auth, upload.single("profilePhoto"), updateAvatar);
@@ -35,5 +46,9 @@ router.get("/profile-photo", auth, getProfilePhoto);
 router.post("/contact", contactLimiter, receiveContactMessage);
 router.get("/reservations", auth, getUserReservations);
 router.get("/cron", auth, cronjob);
+
+// HIGH-1: Session cookie endpoints (no auth required — these are called before/after auth)
+router.post("/session", createSession);
+router.post("/logout", logoutUser);
 
 export default router;

@@ -23,8 +23,12 @@ const reviewSchema = new Schema({
     },
     comment: {
         type: String,
+        maxlength: 2000,
+        trim: true,
     },
 }, { timestamps: true });
 
+// PERF-2: Index for getReviews query
+reviewSchema.index({ parkingSpace: 1 });
 
 export const Review = mongoose.model('Review', reviewSchema);

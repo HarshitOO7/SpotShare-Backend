@@ -119,3 +119,10 @@ dist
 
 #firebase service account
 serviceAccountKey.json
+
+# audit report
+SpotShare-audit-report.md
+
+# temp upload directory (HIGH-5: files never committed)
+/tmp/*
+!/tmp/.gitkeep

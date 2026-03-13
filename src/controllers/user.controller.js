@@ -5,6 +5,7 @@ import { APIResponse } from '../utils/APIResponse.js';
 import { uploadProfilePhotoOnCloudinary } from '../utils/cloudinary.js';
 import { sendEmail } from '../utils/mailer.js';
 import { Reservation } from '../models/reservation.model.js';
+import admin from '../config/firebase.config.cjs';
 
 const escapeHtml = (str) => String(str)
     .replace(/&/g, '&amp;')
@@ -51,18 +52,15 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 const getUserDetails = asyncHandler(async (req, res) => {
-    try {
-        const user = await User.findOne({ uid: req.user.uid }).select("-uid");
-        if (!user) {
-            throw new APIError(404, "User not found");
-        }
-
-        return res.status(200).json(
-            new APIResponse(200, user, "User details retrieved successfully")
-        );
-    } catch (error) {
-        throw new APIError(500, "Something went wrong while getting user details");
+    // HIGH-10: Removed inner try/catch that was swallowing its own 404 and re-throwing as 500
+    const user = await User.findOne({ uid: req.user.uid }).select("-uid");
+    if (!user) {
+        throw new APIError(404, "User not found");
     }
+
+    return res.status(200).json(
+        new APIResponse(200, user, "User details retrieved successfully")
+    );
 });
 
 const updateAvatar = asyncHandler(async (req, res) => {
@@ -77,11 +75,12 @@ const updateAvatar = asyncHandler(async (req, res) => {
         throw new APIError(500, "Something went wrong while uploading profile photo");
     }
 
+    // HIGH-6: .select("-uid") prevents Firebase UID from leaking in the response
     const user = await User.findOneAndUpdate(
         { uid: req.user.uid },
         { profilePhoto: result.secure_url },
         { new: true }
-    );
+    ).select("-uid");
 
     if (!user) {
         throw new APIError(500, "Something went wrong while updating profile photo");
@@ -165,7 +164,8 @@ const receiveContactMessage = asyncHandler(async (req, res) => {
     `;
 
     try {
-        await sendEmail(email, "spotshare3@gmail.com", "Contact Form Submission", messageBody);
+        // MED-1: Send to our own address; user's email in Reply-To header
+        await sendEmail(process.env.SMTP_USER || 'spotshare3@gmail.com', "Contact Form Submission", messageBody, email);
         res.status(200).json(new APIResponse(200, null, "Message sent successfully"));
     } catch (error) {
         throw new APIError(500, "Failed to send message");
@@ -190,6 +190,30 @@ const cronjob = asyncHandler(async (req, res) => {
     res.send("OK");
 });
 
+// HIGH-1: Creates a Firebase session cookie and sets it as httpOnly
+// Client sends the short-lived Firebase ID token; we exchange it for a 5-day session cookie
+const createSession = asyncHandler(async (req, res) => {
+    const { idToken } = req.body;
+    if (!idToken) {
+        throw new APIError(400, 'idToken is required');
+    }
+    const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days in ms
+    const sessionCookie = await admin.auth().createSessionCookie(idToken, { expiresIn });
+    res.cookie('session', sessionCookie, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: expiresIn,
+    });
+    res.status(200).json(new APIResponse(200, null, 'Session created'));
+});
+
+// HIGH-1: Clears the session cookie
+const logoutUser = asyncHandler(async (req, res) => {
+    res.clearCookie('session');
+    res.status(200).json(new APIResponse(200, null, 'Logged out'));
+});
+
 export {
     registerUser,
     getUserDetails,
@@ -199,5 +223,7 @@ export {
     getProfilePhoto,
     receiveContactMessage,
     getUserReservations,
-    cronjob
+    cronjob,
+    createSession,
+    logoutUser,
 }

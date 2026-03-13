@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import mongoose from 'mongoose';
 import { Reservation } from '../models/reservation.model.js';
 import { ParkingSpace } from '../models/parkingSpace.model.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -34,7 +35,12 @@ const createReservation = asyncHandler(async (req, res) => {
         return res.status(200).json(new APIResponse(200, existing, 'Reservation already exists'));
     }
 
-    const user = await User.findOne({ uid: req.user.uid });
+    // PERF-4: Fetch user and parking space in parallel
+    const [user, parkingSpace] = await Promise.all([
+        User.findOne({ uid: req.user.uid }),
+        ParkingSpace.findById(parkingSpaceId).populate('reservations').populate('owner'),
+    ]);
+
     if (!user) {
         throw new APIError(404, 'User not found');
     }
@@ -43,7 +49,6 @@ const createReservation = asyncHandler(async (req, res) => {
         throw new APIError(400, 'User must have a phone number to make a reservation');
     }
 
-    const parkingSpace = await ParkingSpace.findById(parkingSpaceId).populate('reservations').populate('owner');
     if (!parkingSpace) {
         throw new APIError(404, 'Parking space not found');
     }
@@ -98,13 +103,22 @@ const createReservation = asyncHandler(async (req, res) => {
         stripeSessionId,
     });
 
-    await newReservation.save();
-
-    parkingSpace.reservations.push(newReservation._id);
-    await parkingSpace.save();
-
-    user.reservationHistory.push(newReservation._id);
-    await user.save();
+    // HIGH-4: Wrap all three writes in a transaction so partial failures don't leave inconsistent state
+    const dbSession = await mongoose.startSession();
+    await dbSession.withTransaction(async () => {
+        await newReservation.save({ session: dbSession });
+        await ParkingSpace.findByIdAndUpdate(
+            parkingSpaceId,
+            { $push: { reservations: newReservation._id } },
+            { session: dbSession }
+        );
+        await User.findByIdAndUpdate(
+            user._id,
+            { $push: { reservationHistory: newReservation._id } },
+            { session: dbSession }
+        );
+    });
+    await dbSession.endSession();
 
     // Send email notification to the parking space owner (HTML-escaped)
     const safeOwnerName = escapeHtml(parkingSpace.owner.fullName || '');
@@ -183,7 +197,12 @@ const rejectReservation = asyncHandler(async (req, res) => {
 
 const getReservations = asyncHandler(async (req, res) => {
     // Admin-only: enforced by isAdmin middleware on the route
-    const reservations = await Reservation.find().populate('parkingSpace user');
+    // HIGH-8: Paginate to prevent loading all reservations into memory
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const skip = (page - 1) * limit;
+
+    const reservations = await Reservation.find().populate('parkingSpace user').skip(skip).limit(limit);
     return res.status(200).json(new APIResponse(200, reservations, 'Reservations retrieved successfully'));
 });
 

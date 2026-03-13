@@ -41,9 +41,11 @@ const createPaymentSession = asyncHandler(async (req, res, next) => {
             return next(new APIError('Unable to calculate price for this parking space', 400));
         }
 
-        // Include uid in metadata so the webhook can look up the user
+        // Include uid and server-authoritative spotId in metadata
+        // spotId is always taken from the validated parkingSpaceId — never from client metadata
         const sessionMetadata = {
             ...metadata,
+            spotId: parkingSpaceId,  // CRIT-3: override any client-supplied spotId
             uid: req.user.uid,
         };
 
@@ -72,7 +74,7 @@ const createPaymentSession = asyncHandler(async (req, res, next) => {
             return next(new APIError('Failed to create payment session', 500));
         }
 
-        res.status(200).json(new APIResponse('Payment session created successfully', { url: session.url }));
+        res.status(200).json(new APIResponse(200, { url: session.url }, 'Payment session created successfully'));
     } catch (error) {
         next(new APIError('Failed to create payment session', 500));
     }
@@ -154,7 +156,18 @@ const confirmPayment = asyncHandler(async (req, res, next) => {
         return next(new APIError('Reservation not found', 404));
     }
 
-    if (reservation.paymentStatus === 'succeeded') {
+    // CRIT-2: Verify the requesting user owns this reservation
+    if (reservation.user.toString() !== user._id.toString()) {
+        return next(new APIError('Unauthorized', 403));
+    }
+
+    // MED-6: Atomic check + update to prevent TOCTOU race condition
+    const updated = await Reservation.findOneAndUpdate(
+        { _id: reservationId, paymentStatus: { $ne: 'succeeded' } },
+        { paymentStatus: 'succeeded' },
+        { new: true }
+    );
+    if (!updated) {
         return next(new APIError('Payment already completed', 400));
     }
 
@@ -170,11 +183,10 @@ const confirmPayment = asyncHandler(async (req, res, next) => {
         return next(new APIError('Failed to confirm payment', 500));
     }
 
-    reservation.paymentStatus = 'succeeded';
-    reservation.paymentId = payment._id;
-    await reservation.save();
+    updated.paymentId = payment._id;
+    await updated.save();
 
-    res.status(200).json(new APIResponse('Payment confirmed successfully'));
+    res.status(200).json(new APIResponse(200, null, 'Payment confirmed successfully'));
 });
 
 
