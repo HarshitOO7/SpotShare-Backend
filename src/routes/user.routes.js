@@ -38,14 +38,14 @@ const router = Router();
 
 router.post("/register", registerLimiter, auth, registerUser);
 router.get("/me", auth, getUserDetails);
-router.get("/verify-token", auth, (req, res) => res.send("Token is valid"));
+router.get("/verify-token", auth, (_req, res) => res.send("Token is valid"));
 router.post("/avatar", auth, upload.single("profilePhoto"), updateAvatar);
 router.get("/parking-spaces", auth, getParkingSpaces);
 router.get("/admin", auth, isAdmin, isUserAdmin);
 router.get("/profile-photo", auth, getProfilePhoto);
 router.post("/contact", contactLimiter, receiveContactMessage);
 router.get("/reservations", auth, getUserReservations);
-router.get("/cron", auth, cronjob);
+router.get("/cron", cronjob);
 
 // HIGH-1: Session cookie endpoints (no auth required — these are called before/after auth)
 router.post("/session", createSession);
