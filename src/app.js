@@ -40,9 +40,19 @@ app.use(helmet({
 // Stripe needs the raw body to verify the webhook signature
 app.use('/api/v1/pay/webhook', express.raw({ type: 'application/json' }));
 
-// CRIT-5: Use explicit CLIENT_URL — never a wildcard with credentials: true
+// CRIT-5: Accept both www and non-www variants of CLIENT_URL
+const rawOrigin = process.env.CLIENT_URL || 'http://localhost:3000';
+const allowedOrigins = new Set([
+    rawOrigin.replace(/\/$/, ''),
+    rawOrigin.replace(/\/$/, '').replace('://www.', '://'),
+    rawOrigin.replace(/\/$/, '').replace('://', '://www.'),
+]);
 app.use(cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: (origin, cb) => {
+        // Allow server-to-server / curl (no origin) and any listed variant
+        if (!origin || allowedOrigins.has(origin)) return cb(null, true);
+        cb(new Error(`CORS: origin ${origin} not allowed`));
+    },
     credentials: true
 }));
 
